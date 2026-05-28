@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Palette, Compass, Apple, Sparkles, Smile, CheckCircle, Flame } from 'lucide-react';
+import { Palette, Compass, Droplet, Sparkles, Smile, CheckCircle, Flame } from 'lucide-react';
 
 interface Activity {
   id: string;
@@ -13,9 +13,10 @@ interface Activity {
 
 interface OfflineActivitiesProps {
   onCompleteActivity: (estrelas: number) => void;
+  isCompact?: boolean;
 }
 
-export const OfflineActivities: React.FC<OfflineActivitiesProps> = ({ onCompleteActivity }) => {
+export const OfflineActivities: React.FC<OfflineActivitiesProps> = ({ onCompleteActivity, isCompact = false }) => {
   const [completedList, setCompletedList] = useState<string[]>([]);
   const [activeCelebration, setActiveCelebration] = useState<string | null>(null);
 
@@ -40,10 +41,10 @@ export const OfflineActivities: React.FC<OfflineActivitiesProps> = ({ onComplete
     },
     {
       id: 'water-3',
-      titulo: 'Poção da Hidratação 🍎',
-      descricao: 'Vá até a cozinha, beba um copo inteiro de água e coma um pedaço de fruta deliciosa para recarregar as energias.',
+      titulo: 'Poção da Hidratação 💧',
+      descricao: 'Beba um copo de água bem fresquinho e coma uma fruta saborosa para se recarregar!',
       recompensa: 2,
-      icon: <Apple className="w-6 h-6" />,
+      icon: <Droplet className="w-6 h-6" />,
       cor: 'bg-pastel-green-100 hover:bg-pastel-green-200 border-pastel-green-200',
       corTexto: 'text-pastel-green-600'
     },
@@ -74,19 +75,19 @@ export const OfflineActivities: React.FC<OfflineActivitiesProps> = ({ onComplete
 
   return (
     <div className="w-full max-w-xl mx-auto font-kids">
-      <div className="text-center mb-6">
-        <h4 className="text-lg md:text-xl font-black text-pastel-purple-600 flex items-center justify-center gap-2">
-          <Sparkles className="animate-wiggle text-pastel-yellow-500 fill-pastel-yellow-200" />
+      <div className="text-center mb-4 sm:mb-6">
+        <h4 className="text-base sm:text-lg md:text-xl font-black text-pastel-purple-600 flex items-center justify-center gap-1.5 sm:gap-2">
+          <Sparkles size={16} className="animate-wiggle text-pastel-yellow-500 fill-pastel-yellow-200 shrink-0" />
           Sua Estação de Descanso Real!
-          <Sparkles className="animate-wiggle text-pastel-yellow-500 fill-pastel-yellow-200" />
+          <Sparkles size={16} className="animate-wiggle text-pastel-yellow-500 fill-pastel-yellow-200 shrink-0" />
         </h4>
-        <p className="text-xs md:text-sm text-slate-500 max-w-sm mx-auto mt-1 font-medium">
+        <p className="text-[10px] sm:text-xs md:text-sm text-slate-500 max-w-sm mx-auto mt-0.5 font-medium leading-relaxed">
           Escolha uma missão divertida abaixo para fazer no mundo real e ganhe estrelas de equilíbrio!
         </p>
       </div>
 
       {/* Grid de Missões */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div className={`grid gap-3 sm:gap-4 ${isCompact ? 'grid-cols-1' : 'grid-cols-1 sm:grid-cols-2'}`}>
         {activities.map((act) => {
           const isCompleted = completedList.includes(act.id);
           const isCelebrating = activeCelebration === act.id;
@@ -94,7 +95,7 @@ export const OfflineActivities: React.FC<OfflineActivitiesProps> = ({ onComplete
           return (
             <div
               key={act.id}
-              className={`p-4 rounded-3xl border-2 transition-all relative overflow-hidden flex flex-col justify-between ${
+              className={`p-3.5 rounded-[22px] sm:rounded-3xl border-2 transition-all relative overflow-hidden flex flex-col justify-between ${
                 isCompleted 
                   ? 'bg-slate-50 border-slate-200 opacity-70' 
                   : `${act.cor} cursor-pointer hover:shadow-md hover:-translate-y-0.5 active:translate-y-0`
@@ -104,11 +105,12 @@ export const OfflineActivities: React.FC<OfflineActivitiesProps> = ({ onComplete
               {/* Overlay de Comemoração de Estrelas */}
               {isCelebrating && (
                 <div className="absolute inset-0 bg-gradient-to-r from-pastel-purple-500/95 to-pastel-blue-500/95 flex flex-col items-center justify-center text-white z-10 animate-fade-in">
-                  <Flame size={28} className="animate-bounce text-pastel-yellow-400 fill-pastel-yellow-300 mb-1" />
-                  <span className="font-extrabold text-sm text-center">Incrível! 🌟</span>
-                  <span className="text-[10px] font-medium font-parents mt-0.5">+{act.recompensa} Estrela(s) Adicionada(s)!</span>
+                  <Flame size={24} className="animate-bounce text-pastel-yellow-400 fill-pastel-yellow-300 mb-0.5" />
+                  <span className="font-extrabold text-xs sm:text-sm text-center">Incrível! 🌟</span>
+                  <span className="text-[9px] sm:text-[10px] font-medium font-parents mt-0.5">+{act.recompensa} Estrela(s) Adicionada(s)!</span>
                 </div>
               )}
+
 
               <div>
                 {/* Ícone & Recompensa */}

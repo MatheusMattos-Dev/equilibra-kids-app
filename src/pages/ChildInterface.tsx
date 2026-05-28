@@ -8,9 +8,14 @@ import { ChevronLeft, Award, Sparkles, AlertTriangle, Send, Moon, Clock } from '
 interface ChildInterfaceProps {
   onNavigate: (page: 'parent-dashboard') => void;
   className?: string;
+  isCompact?: boolean;
 }
 
-export const ChildInterface: React.FC<ChildInterfaceProps> = ({ onNavigate, className = 'min-h-screen p-4 md:p-6' }) => {
+export const ChildInterface: React.FC<ChildInterfaceProps> = ({ 
+  onNavigate, 
+  className = 'min-h-screen p-4 md:p-6',
+  isCompact = false
+}) => {
   const { 
     perfis, 
     activeProfileId, 
@@ -149,18 +154,18 @@ export const ChildInterface: React.FC<ChildInterfaceProps> = ({ onNavigate, clas
         
         {/* BANNER NOTIFICAÇÃO 15 MINUTOS */}
         {warn15Open && (
-          <div className="w-full bg-pastel-yellow-50 border-4 border-pastel-yellow-200 p-5 rounded-[32px] text-center mb-6 shadow-lg animate-bounce relative z-20">
-            <h3 className="text-pastel-yellow-600 font-black text-lg flex items-center justify-center gap-1.5">
-              <Sparkles size={20} className="animate-wiggle" />
+          <div className={`w-full bg-pastel-yellow-50 border-4 border-pastel-yellow-200 rounded-[28px] sm:rounded-[32px] text-center shadow-lg animate-bounce relative z-20 ${isCompact ? 'p-4 mb-4' : 'p-5 mb-6'}`}>
+            <h3 className="text-pastel-yellow-600 font-black text-base sm:text-lg flex items-center justify-center gap-1.5">
+              <Sparkles size={16} className="animate-wiggle" />
               Alerta de Aventura!
             </h3>
-            <p className="text-xs text-slate-600 mt-1 font-medium font-parents leading-relaxed">
+            <p className="text-[11px] sm:text-xs text-slate-600 mt-1 font-medium font-parents leading-relaxed">
               Oi <strong>{perfil.nome}</strong>! Nosso tempo de tela está quase terminando (faltam 15 minutinhos).
               Que tal começar a salvar o seu joguinho ou terminar esse vídeo para não perder nada? 🎮
             </p>
             <button
               onClick={() => { setWarn15Open(false); setHasDismissed15(true); }}
-              className="mt-4 px-6 py-2 bg-pastel-yellow-500 hover:bg-pastel-yellow-600 text-white font-black text-xs rounded-2xl shadow-md border-b-4 border-pastel-yellow-600 active:scale-95 transition-all"
+              className="mt-3 px-5 py-1.5 bg-pastel-yellow-500 hover:bg-pastel-yellow-600 text-white font-black text-xs rounded-xl sm:rounded-2xl shadow-md border-b-4 border-pastel-yellow-600 active:scale-95 transition-all"
             >
               Entendi! 👍
             </button>
@@ -169,18 +174,18 @@ export const ChildInterface: React.FC<ChildInterfaceProps> = ({ onNavigate, clas
 
         {/* BANNER NOTIFICAÇÃO 5 MINUTOS */}
         {warn5Open && (
-          <div className="w-full bg-pastel-pink-50 border-4 border-pastel-pink-200 p-5 rounded-[32px] text-center mb-6 shadow-lg animate-bounce relative z-20">
-            <h3 className="text-pastel-pink-500 font-black text-lg flex items-center justify-center gap-1.5">
-              <AlertTriangle size={20} className="animate-pulse" />
+          <div className={`w-full bg-pastel-pink-50 border-4 border-pastel-pink-200 rounded-[28px] sm:rounded-[32px] text-center shadow-lg animate-bounce relative z-20 ${isCompact ? 'p-4 mb-4' : 'p-5 mb-6'}`}>
+            <h3 className="text-pastel-pink-500 font-black text-base sm:text-lg flex items-center justify-center gap-1.5">
+              <AlertTriangle size={16} className="animate-pulse" />
               Hora do Espreguiço!
             </h3>
-            <p className="text-xs text-slate-600 mt-1 font-medium font-parents leading-relaxed">
+            <p className="text-[11px] sm:text-xs text-slate-600 mt-1 font-medium font-parents leading-relaxed">
               Nossa, como o tempo passou rápido! Faltam apenas 5 minutos.
               É hora de se espreguiçar como um gatinho preguiçoso 🐱 e pensar em qual será sua próxima brincadeira divertida fora das telas!
             </p>
             <button
               onClick={() => { setWarn5Open(false); setHasDismissed5(true); }}
-              className="mt-4 px-6 py-2 bg-pastel-pink-500 hover:bg-pastel-pink-600 text-white font-black text-xs rounded-2xl shadow-md border-b-4 border-pastel-pink-600 active:scale-95 transition-all"
+              className="mt-3 px-5 py-1.5 bg-pastel-pink-500 hover:bg-pastel-pink-600 text-white font-black text-xs rounded-xl sm:rounded-2xl shadow-md border-b-4 border-pastel-pink-600 active:scale-95 transition-all"
             >
               Vou me preparar! 🌟
             </button>
@@ -191,7 +196,7 @@ export const ChildInterface: React.FC<ChildInterfaceProps> = ({ onNavigate, clas
           /* TIMER DA CRIANÇA */
           <div className="flex flex-col items-center">
             {/* Círculo Progressivo Radial */}
-            <div className="relative w-64 h-64 md:w-72 md:h-72 flex items-center justify-center">
+            <div className={`relative flex items-center justify-center ${isCompact ? 'w-48 h-48' : 'w-64 h-64 md:w-72 md:h-72'}`}>
               <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
                 {/* Trilho de fundo */}
                 <circle
@@ -217,68 +222,69 @@ export const ChildInterface: React.FC<ChildInterfaceProps> = ({ onNavigate, clas
 
               {/* Conteúdo Central */}
               <div className="absolute flex flex-col items-center justify-center text-center">
-                <Avatar type={perfil.avatar} className="w-24 h-24 mb-1 animate-float" />
-                <span className="text-slate-400 font-bold text-[10px] uppercase font-parents tracking-wider">Tempo Restante</span>
-                <span className={`text-4xl md:text-5xl font-black ${theme.text} leading-none tabular-nums`}>
+                <Avatar type={perfil.avatar} className={`mb-1 animate-float ${isCompact ? 'w-16 h-16' : 'w-24 h-24'}`} />
+                <span className="text-slate-400 font-bold text-[9px] sm:text-[10px] uppercase font-parents tracking-wider">Tempo Restante</span>
+                <span className={`font-black ${theme.text} leading-none tabular-nums ${isCompact ? 'text-3xl' : 'text-4xl md:text-5xl'}`}>
                   {formatTime(restanteSegundos)}
                 </span>
-                <span className="text-[10px] text-slate-400 font-parents font-semibold mt-1">Limite: {perfil.limiteDiario}m</span>
+                <span className="text-[9px] sm:text-[10px] text-slate-400 font-parents font-semibold mt-0.5">Limite: {perfil.limiteDiario}m</span>
               </div>
             </div>
 
             {/* Mensagem Acolhedora */}
-            <div className={`mt-8 px-6 py-3.5 rounded-3xl border-2 text-center max-w-sm ${theme.bg} shadow-sm`}>
-              <p className="text-slate-700 text-xs font-bold leading-relaxed">
+            <div className={`px-5 py-3 rounded-2xl sm:rounded-3xl border-2 text-center max-w-sm ${theme.bg} shadow-sm ${isCompact ? 'mt-4' : 'mt-8'}`}>
+              <p className="text-slate-700 text-[11px] sm:text-xs font-bold leading-relaxed">
                 {theme.message}
               </p>
               
               {perfil.status === 'pausado' && (
-                <div className="mt-2.5 inline-flex items-center gap-1 bg-pastel-yellow-100 text-pastel-yellow-700 text-[10px] font-black uppercase px-3 py-1 rounded-full border border-pastel-yellow-200">
-                  <Clock size={11} /> Pausado pelos Pais
+                <div className="mt-2 inline-flex items-center gap-1 bg-pastel-yellow-100 text-pastel-yellow-700 text-[9px] sm:text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full border border-pastel-yellow-200">
+                  <Clock size={10} /> Pausado pelos Pais
                 </div>
               )}
             </div>
           </div>
         ) : (
           /* TELA DE BLOQUEIO AMIGÁVEL ("ESTAÇÃO DE DESCANSO") */
-          <div className="w-full bg-white/90 border-4 border-pastel-purple-200 p-6 rounded-[40px] text-center shadow-xl animate-pop relative overflow-hidden">
+          <div className="w-full bg-white/90 border-4 border-pastel-purple-200 p-4 sm:p-6 rounded-[32px] sm:rounded-[40px] text-center shadow-xl animate-pop relative overflow-hidden">
             
             {/* Ilustração / Background Sleepy */}
             <div className="absolute -top-12 -left-12 w-24 h-24 bg-pastel-purple-100 rounded-full opacity-30" />
             <div className="absolute -bottom-12 -right-12 w-32 h-32 bg-pastel-blue-100 rounded-full opacity-30" />
 
-            <div className="inline-flex p-4 bg-pastel-purple-50 text-pastel-purple-500 rounded-3xl mb-4 border-2 border-pastel-purple-100">
-              <Moon size={36} className="animate-pulse" />
+            <div className="inline-flex p-3 bg-pastel-purple-50 text-pastel-purple-500 rounded-2xl mb-3 border-2 border-pastel-purple-100">
+              <Moon size={28} className="animate-pulse" />
             </div>
 
-            <h3 className="text-pastel-purple-600 font-black text-xl md:text-2xl">
+            <h3 className="text-pastel-purple-600 font-black text-lg sm:text-xl md:text-2xl">
               Hora de Descansar! 💤
             </h3>
             
-            <p className="text-xs md:text-sm text-slate-600 font-semibold font-parents max-w-md mx-auto mt-2 leading-relaxed">
+            <p className="text-[11px] sm:text-xs md:text-sm text-slate-600 font-semibold font-parents max-w-md mx-auto mt-1.5 leading-relaxed">
               Parabéns por brincar de forma equilibrada hoje! Seus olhos e seu cérebro estão muito felizes por descansar um pouquinho. O tablet está indo dormir agora... 😴
             </p>
 
             {/* Quests Físicas Reais */}
-            <div className="my-6 bg-slate-50/50 p-4 rounded-3xl border-2 border-slate-100">
+            <div className="my-4 sm:my-6 bg-slate-50/50 p-3 sm:p-4 rounded-2xl sm:rounded-3xl border-2 border-slate-100">
               <OfflineActivities 
+                isCompact={isCompact}
                 onCompleteActivity={(estrelas) => concluirAtividadeOffline(perfil.id, estrelas)} 
               />
             </div>
 
             {/* Controle de Pedidos de Tempo */}
-            <div className="mt-6 flex flex-col items-center">
+            <div className="mt-4 sm:mt-6 flex flex-col items-center">
               {perfil.pediuMaisTempo ? (
-                <div className="inline-flex items-center gap-2 bg-pastel-purple-100 border border-pastel-purple-200 text-pastel-purple-700 font-bold text-xs px-5 py-3 rounded-2xl shadow-sm animate-pulse font-parents">
-                  <Send size={14} className="animate-spin-slow" />
+                <div className="inline-flex items-center gap-2 bg-pastel-purple-100 border border-pastel-purple-200 text-pastel-purple-700 font-bold text-[11px] sm:text-xs px-4 py-2.5 rounded-xl sm:rounded-2xl shadow-sm animate-pulse font-parents">
+                  <Send size={12} className="animate-spin-slow" />
                   <span>Pedido de +15 minutos enviado! Aguardando aprovação dos pais... 🚀</span>
                 </div>
               ) : (
                 <button
                   onClick={handleRequestMoreTime}
-                  className="px-6 py-3 bg-gradient-to-r from-pastel-purple-500 to-pastel-blue-500 hover:from-pastel-purple-600 hover:to-pastel-blue-600 text-white font-black text-xs md:text-sm rounded-2xl shadow-md border-b-4 border-pastel-purple-700 active:scale-95 transition-all flex items-center gap-2"
+                  className="px-5 py-2.5 bg-gradient-to-r from-pastel-purple-500 to-pastel-blue-500 hover:from-pastel-purple-600 hover:to-pastel-blue-600 text-white font-black text-[11px] sm:text-xs md:text-sm rounded-xl sm:rounded-2xl shadow-md border-b-4 border-pastel-purple-700 active:scale-95 transition-all flex items-center gap-2"
                 >
-                  <Send size={15} />
+                  <Send size={13} />
                   Pedir mais 15 minutinhos aos pais 📨
                 </button>
               )}

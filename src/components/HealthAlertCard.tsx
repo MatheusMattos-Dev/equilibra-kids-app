@@ -1,6 +1,6 @@
 import React from 'react';
 import type { HealthAlert } from '../hooks/useScreenTime';
-import { AlertTriangle, Moon, Calendar, Eye, HeartPulse, Sparkles, BookOpen } from 'lucide-react';
+import { AlertTriangle, Moon, Calendar, Eye, HeartPulse, Sparkles, BookOpen, TrendingUp } from 'lucide-react';
 
 interface HealthAlertCardProps {
   alerta: HealthAlert;
@@ -30,6 +30,13 @@ export const HealthAlertCard: React.FC<HealthAlertCardProps> = ({ alerta, onReso
       tagBg: 'bg-pastel-pink-100 text-pastel-pink-600',
       borderLeft: 'border-l-4 border-l-pastel-pink-500',
       label: 'Alerta Crítico'
+    },
+    evolucao: {
+      bg: 'bg-pastel-green-50/70 border-pastel-green-200',
+      iconBg: 'bg-pastel-green-100 text-pastel-green-600',
+      tagBg: 'bg-pastel-green-100 text-pastel-green-700',
+      borderLeft: 'border-l-4 border-l-pastel-green-500',
+      label: 'Evolução Saudável'
     }
   };
 
@@ -44,6 +51,8 @@ export const HealthAlertCard: React.FC<HealthAlertCardProps> = ({ alerta, onReso
         return <Calendar size={20} />;
       case 'USO_EXTREMO':
         return <Eye size={20} />;
+      case 'EVOLUCAO_POSITIVA':
+        return <TrendingUp size={20} className="animate-pulse text-pastel-green-600" />;
       default:
         return <AlertTriangle size={20} />;
     }
@@ -76,22 +85,22 @@ export const HealthAlertCard: React.FC<HealthAlertCardProps> = ({ alerta, onReso
 
       {/* Grid de Impacto vs Dica Prática */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Impacto Clínico */}
+        {/* Impacto Clínico / Benefício do Desenvolvimento */}
         <div className="bg-white/60 p-3.5 rounded-xl border border-white/80">
-          <div className="flex items-center gap-1.5 text-pastel-pink-500 font-bold text-xs mb-2">
-            <HeartPulse size={14} />
-            <span>Por que isso prejudica a saúde?</span>
+          <div className={`flex items-center gap-1.5 font-bold text-xs mb-2 ${alerta.tipo === 'EVOLUCAO_POSITIVA' ? 'text-pastel-blue-600' : 'text-pastel-pink-500'}`}>
+            {alerta.tipo === 'EVOLUCAO_POSITIVA' ? <Sparkles size={14} /> : <HeartPulse size={14} />}
+            <span>{alerta.tipo === 'EVOLUCAO_POSITIVA' ? 'Benefício para o Desenvolvimento' : 'Por que isso prejudica a saúde?'}</span>
           </div>
           <p className="text-slate-600 text-xs leading-relaxed font-medium">
             {alerta.impacto}
           </p>
         </div>
 
-        {/* Dica de Intervenção */}
-        <div className="bg-pastel-green-50/50 p-3.5 rounded-xl border border-pastel-green-100">
-          <div className="flex items-center gap-1.5 text-pastel-green-600 font-bold text-xs mb-2">
+        {/* Dica de Intervenção / Como Incentivar */}
+        <div className={alerta.tipo === 'EVOLUCAO_POSITIVA' ? 'bg-pastel-purple-50/50 p-3.5 rounded-xl border border-pastel-purple-100' : 'bg-pastel-green-50/50 p-3.5 rounded-xl border border-pastel-green-100'}>
+          <div className={`flex items-center gap-1.5 font-bold text-xs mb-2 ${alerta.tipo === 'EVOLUCAO_POSITIVA' ? 'text-pastel-purple-600' : 'text-pastel-green-600'}`}>
             <Sparkles size={14} className="animate-wiggle" />
-            <span>Dica Prática para os Pais</span>
+            <span>{alerta.tipo === 'EVOLUCAO_POSITIVA' ? 'Como celebrar e incentivar?' : 'Dica Prática para os Pais'}</span>
           </div>
           <p className="text-slate-600 text-xs leading-relaxed font-medium">
             {alerta.dicaPratica}
@@ -107,7 +116,7 @@ export const HealthAlertCard: React.FC<HealthAlertCardProps> = ({ alerta, onReso
             className="flex items-center gap-1.5 px-4 py-1.5 bg-white hover:bg-pastel-green-50 text-pastel-green-600 hover:text-pastel-green-700 font-bold text-xs rounded-xl border border-pastel-green-200 transition-colors shadow-sm active:scale-95"
           >
             <BookOpen size={12} />
-            Entendi, vou aplicar a dica!
+            {alerta.tipo === 'EVOLUCAO_POSITIVA' ? 'Excelente, vou continuar incentivando!' : 'Entendi, vou aplicar a dica!'}
           </button>
         </div>
       )}

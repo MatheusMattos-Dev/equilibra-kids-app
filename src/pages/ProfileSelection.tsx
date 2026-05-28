@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useScreenTime } from '../hooks/useScreenTime';
 import { Avatar } from '../components/Avatar';
 import { ParentPinModal } from '../components/ParentPinModal';
-import { Settings, Shield, Sparkles, RefreshCw } from 'lucide-react';
+import { Settings, Shield, Sparkles, RefreshCw, Trophy, X, Check } from 'lucide-react';
 
 interface ProfileSelectionProps {
   onNavigate: (page: 'child-mode' | 'parent-dashboard') => void;
@@ -11,6 +11,7 @@ interface ProfileSelectionProps {
 export const ProfileSelection: React.FC<ProfileSelectionProps> = ({ onNavigate }) => {
   const { perfis, selecionarPerfil, resetarSimulador } = useScreenTime();
   const [pinOpen, setPinOpen] = useState<boolean>(false);
+  const [rankingOpen, setRankingOpen] = useState<boolean>(false);
   const [showResetToast, setShowResetToast] = useState<boolean>(false);
 
   const handleSelectProfile = (id: string) => {
@@ -56,13 +57,25 @@ export const ProfileSelection: React.FC<ProfileSelectionProps> = ({ onNavigate }
           </div>
         </div>
 
-        <button
-          onClick={handleParentAccess}
-          className="flex items-center gap-2 px-4 py-2.5 bg-white hover:bg-pastel-purple-50 text-pastel-purple-600 font-bold text-xs rounded-2xl border-2 border-pastel-purple-200 transition-all shadow-sm active:scale-95 font-parents"
-        >
-          <Settings size={14} className="animate-spin-slow" />
-          Área dos Pais 🔒
-        </button>
+        <div className="flex items-center gap-2">
+          {/* Botão de Ranking de Missões */}
+          <button
+            onClick={() => setRankingOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-2 bg-gradient-to-r from-pastel-yellow-400 to-pastel-yellow-500 hover:from-pastel-yellow-500 hover:to-pastel-yellow-600 text-white font-black text-xs rounded-2xl transition-all shadow-sm active:scale-95 font-parents"
+            title="Ver Ranking de Missões Saudáveis"
+          >
+            <Trophy size={14} className="animate-wiggle" />
+            Ranking 🏆
+          </button>
+
+          <button
+            onClick={handleParentAccess}
+            className="flex items-center gap-2 px-4 py-2.5 bg-white hover:bg-pastel-purple-50 text-pastel-purple-600 font-bold text-xs rounded-2xl border-2 border-pastel-purple-200 transition-all shadow-sm active:scale-95 font-parents"
+          >
+            <Settings size={14} className="animate-spin-slow" />
+            Área dos Pais 🔒
+          </button>
+        </div>
       </div>
 
       {/* Main Selector */}
@@ -109,7 +122,7 @@ export const ProfileSelection: React.FC<ProfileSelectionProps> = ({ onNavigate }
                   )}
                   {perfil.status === 'online' && (
                     <div className="absolute -top-1 -right-1 bg-pastel-green-500 text-white text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full border-2 border-white shadow-md font-parents animate-pulse">
-                      Jogando
+                      Online
                     </div>
                   )}
                 </div>
@@ -150,6 +163,101 @@ export const ProfileSelection: React.FC<ProfileSelectionProps> = ({ onNavigate }
         onClose={() => setPinOpen(false)}
         onSuccess={handlePinSuccess}
       />
+
+      {/* Modal de Ranking de Missões */}
+      {rankingOpen && (
+        <div className="fixed inset-0 z-40 bg-soft-dark-900/40 backdrop-blur-sm flex items-center justify-center p-4 font-kids">
+          <div className="w-full max-w-md bg-white p-6 rounded-[32px] border-4 border-pastel-yellow-200 shadow-2xl animate-pop relative flex flex-col gap-4">
+            
+            {/* Botão Fechar */}
+            <button
+              onClick={() => setRankingOpen(false)}
+              className="absolute top-4 right-4 p-2 bg-slate-100 hover:bg-slate-200 text-slate-500 rounded-full transition-colors active:scale-95"
+            >
+              <X size={16} />
+            </button>
+
+            {/* Cabeçalho */}
+            <div className="text-center mb-2">
+              <div className="inline-flex p-3 bg-pastel-yellow-100 rounded-2xl text-pastel-yellow-500 mb-2 animate-float">
+                <Trophy size={32} className="fill-pastel-yellow-200" />
+              </div>
+              <h3 className="text-xl font-black text-slate-800">Super Campeões de Missões! 🏆</h3>
+              <p className="text-xs text-slate-400 mt-1 font-parents font-semibold">
+                Quem completou mais missões offline e conquistou estrelas saudáveis?
+              </p>
+            </div>
+
+            {/* Leaderboard */}
+            <div className="flex flex-col gap-3 max-h-[320px] overflow-y-auto pr-1 no-scrollbar">
+              {[...perfis]
+                .sort((a, b) => b.estrelasAcumuladas - a.estrelasAcumuladas)
+                .map((perfil, index) => {
+                  const positions = [
+                    'bg-pastel-yellow-500 text-white border-pastel-yellow-400',
+                    'bg-slate-300 text-slate-700 border-slate-200',
+                    'bg-amber-600 text-white border-amber-500',
+                  ];
+                  
+                  const themeConfig = {
+                    cat: 'border-pastel-pink-100 hover:border-pastel-pink-200',
+                    lion: 'border-pastel-yellow-100 hover:border-pastel-yellow-200',
+                    owl: 'border-pastel-purple-100 hover:border-pastel-purple-200',
+                    bear: 'border-pastel-blue-100 hover:border-pastel-blue-200'
+                  };
+                  const cardBorder = themeConfig[perfil.avatar] || themeConfig.bear;
+
+                  return (
+                    <div
+                      key={perfil.id}
+                      className={`flex items-center justify-between p-3.5 bg-slate-50/50 rounded-2xl border-2 transition-all active:scale-99 ${cardBorder}`}
+                    >
+                      <div className="flex items-center gap-3">
+                        {/* Posição */}
+                        <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-black border shadow-xs ${
+                          index < 3 ? positions[index] : 'bg-slate-100 text-slate-400 border-slate-200'
+                        }`}>
+                          {index + 1}
+                        </span>
+
+                        <Avatar type={perfil.avatar} className="w-10 h-10 shrink-0" />
+                        
+                        <div>
+                          <div className="flex items-center gap-1">
+                            <span className="font-black text-slate-800 text-sm">{perfil.nome}</span>
+                            {index === 0 && <span className="text-xs">👑</span>}
+                          </div>
+                          <span className="text-[10px] text-slate-400 font-semibold font-parents">Mascote Oficial</span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        {/* Missões */}
+                        <div className="flex items-center gap-1 bg-pastel-green-100 text-pastel-green-700 px-2.5 py-1 rounded-full font-black text-[10px]">
+                          <Check size={10} className="stroke-[3]" />
+                          <span>{perfil.missoesCumpridas}</span>
+                        </div>
+
+                        {/* Estrelas */}
+                        <div className="flex items-center gap-0.5 text-pastel-yellow-500 font-black text-xs">
+                          <span>★</span>
+                          <span className="text-slate-700 font-bold">{perfil.estrelasAcumuladas}</span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+            </div>
+
+            {/* Frase Motivacional */}
+            <div className="text-center bg-pastel-purple-50 border border-pastel-purple-100 p-3 rounded-2xl font-parents mt-1">
+              <p className="text-[10px] text-slate-500 font-black leading-relaxed">
+                🚀 Faça atividades divertidas no mundo real e ganhe estrelas para subir no ranking!
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

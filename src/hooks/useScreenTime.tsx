@@ -11,6 +11,7 @@ export interface ChildProfile {
   avatar: 'lion' | 'owl' | 'cat' | 'bear';
   pediuMaisTempo: boolean;
   estrelasAcumuladas: number;
+  missoesCumpridas: number;
   historicoSeteDias: number[]; // em minutos, últimos 7 dias (excluindo hoje)
   usoApos22hCount: number; // ocorrências detectadas no histórico
   excedeuDiasSeguidos: number; // sequência recente de dias excedendo
@@ -22,12 +23,12 @@ export interface HealthAlert {
   id: string;
   childId: string;
   childNome: string;
-  tipo: 'USO_NOTURNO' | 'DIAS_SEGUIDOS' | 'USO_EXTREMO';
+  tipo: 'USO_NOTURNO' | 'DIAS_SEGUIDOS' | 'USO_EXTREMO' | 'EVOLUCAO_POSITIVA';
   titulo: string;
   descricao: string;
   impacto: string;
   dicaPratica: string;
-  gravidade: 'alerta' | 'preocupante' | 'critico';
+  gravidade: 'alerta' | 'preocupante' | 'critico' | 'evolucao';
 }
 
 // Interface do Contexto
@@ -63,6 +64,7 @@ const INITIAL_PROFILES: ChildProfile[] = [
     avatar: 'cat',
     pediuMaisTempo: false,
     estrelasAcumuladas: 4,
+    missoesCumpridas: 2,
     historicoSeteDias: [50, 48, 55, 46, 52, 49, 50], // Excedeu o limite de 45 nos últimos 7 dias consecutivos!
     usoApos22hCount: 0,
     excedeuDiasSeguidos: 7,
@@ -78,6 +80,7 @@ const INITIAL_PROFILES: ChildProfile[] = [
     avatar: 'lion',
     pediuMaisTempo: false,
     estrelasAcumuladas: 12,
+    missoesCumpridas: 5,
     historicoSeteDias: [100, 110, 85, 380, 95, 115, 105], // Teve um dia de uso extremo (380m = 6.3h)
     usoApos22hCount: 4, // Usou telas após às 22h por 4 vezes
     excedeuDiasSeguidos: 0,
@@ -93,6 +96,7 @@ const INITIAL_PROFILES: ChildProfile[] = [
     avatar: 'owl',
     pediuMaisTempo: true, // Começa pedindo mais tempo na demo!
     estrelasAcumuladas: 8,
+    missoesCumpridas: 3,
     historicoSeteDias: [45, 55, 58, 40, 50, 60, 55],
     usoApos22hCount: 1,
     excedeuDiasSeguidos: 1,
@@ -184,6 +188,21 @@ export const ScreenTimeProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           impacto: 'Mais de 6 horas de tela induzem comportamento sedentário extremo, fadiga visual severa (síndrome do olho seco), má postura e reduzem o engajamento físico indispensável para o desenvolvimento saudável.',
           dicaPratica: 'Insira pausas programadas. Adote a regra de ouro "20-20-20": a cada 20 minutos de uso, olhar para um objeto a 20 pés (6 metros) de distância por 20 segundos para relaxar os olhos.',
           gravidade: 'critico'
+        });
+      }
+
+      // 4. Alerta de Evolução Positiva (Conquista de Estrelas / Missões)
+      if (perfil.missoesCumpridas >= 3 || perfil.estrelasAcumuladas >= 8) {
+        novosAlertas.push({
+          id: `alert-evolucao-${perfil.id}`,
+          childId: perfil.id,
+          childNome: perfil.nome,
+          tipo: 'EVOLUCAO_POSITIVA',
+          titulo: 'Parabéns: Evolução Altamente Saudável! 🚀',
+          descricao: `${perfil.nome} completou ${perfil.missoesCumpridas} missões reais e acumulou ★ ${perfil.estrelasAcumuladas} estrelas de equilíbrio digital!`,
+          impacto: 'A alternância programada entre telas e atividades motoras estimula conexões neurais fundamentais na infância. Isso aprimora a criatividade, melhora o controle emocional e reduz drasticamente os níveis de ansiedade e irritabilidade.',
+          dicaPratica: 'Celebre essa grande conquista junto! Que tal recompensar a rotina exemplar com um passeio especial no parque, brincar com jogos de tabuleiro ou cozinhar a receita favorita de vocês no fim de semana?',
+          gravidade: 'evolucao'
         });
       }
     });
@@ -318,7 +337,8 @@ export const ScreenTimeProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       if (p.id === id) {
         return {
           ...p,
-          estrelasAcumuladas: p.estrelasAcumuladas + estrelas
+          estrelasAcumuladas: p.estrelasAcumuladas + estrelas,
+          missoesCumpridas: p.missoesCumpridas + 1
         };
       }
       return p;
@@ -342,6 +362,7 @@ export const ScreenTimeProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       avatar,
       pediuMaisTempo: false,
       estrelasAcumuladas: 0,
+      missoesCumpridas: 0,
       historicoSeteDias: [30, 45, 40, 50, 45, 55, 30],
       usoApos22hCount: 0,
       excedeuDiasSeguidos: 0,

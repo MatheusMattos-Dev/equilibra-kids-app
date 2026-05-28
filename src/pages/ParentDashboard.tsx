@@ -5,7 +5,8 @@ import { HealthAlertCard } from '../components/HealthAlertCard';
 import { 
   Users, Activity, Bell, Settings, ArrowLeft, Play, Pause, 
   Square, ShieldAlert, Plus, Save, Clock, 
-  TrendingUp, Sparkles, Check, Smartphone, ToggleLeft, ToggleRight
+  TrendingUp, Sparkles, Check, Smartphone, ToggleLeft, ToggleRight,
+  Trophy, Medal, Crown
 } from 'lucide-react';
 import { ChildInterface } from './ChildInterface';
 
@@ -32,9 +33,11 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({ onNavigate }) 
   } = useScreenTime();
 
   // Estados locais da página
-  const [activeTab, setActiveTab] = useState<'monitor' | 'alerts' | 'settings'>('monitor');
+  const [activeTab, setActiveTab] = useState<'monitor' | 'alerts' | 'settings' | 'ranking'>('monitor');
   const [selectedChildId, setSelectedChildId] = useState<string>(perfis[0]?.id || '');
   const [splitView, setSplitView] = useState<boolean>(true); // Split view ativa por padrão para demonstração incrível!
+  const [historyFilterId, setHistoryFilterId] = useState<string>('all');
+  const [hoveredBarInfo, setHoveredBarInfo] = useState<{ childId: string; dayIdx: number; val: number } | null>(null);
   
   // Estado para edição de limites
   const selectedProfile = perfis.find(p => p.id === selectedChildId);
@@ -139,12 +142,21 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({ onNavigate }) 
             <Settings size={14} />
             Ajustar Limites
           </button>
+          <button
+            onClick={() => setActiveTab('ranking')}
+            className={`flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-lg transition-all ${
+              activeTab === 'ranking' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            <Trophy size={14} className="text-pastel-yellow-500 fill-pastel-yellow-200" />
+            Ranking de Missões
+          </button>
         </nav>
 
-        {/* Toggle de Modo Lado a Lado (Demonstração) */}
+        {/* Toggle de Modo Lado a Lado (Demonstração - Oculto em Telas Responsivas Menores) */}
         <button
           onClick={() => setSplitView(!splitView)}
-          className={`flex items-center gap-2 px-4 py-2 text-xs font-black rounded-xl border-2 transition-all shadow-sm active:scale-95 ${
+          className={`hidden xl:inline-flex items-center gap-2 px-4 py-2 text-xs font-black rounded-xl border-2 transition-all shadow-sm active:scale-95 ${
             splitView 
               ? 'bg-pastel-purple-50 border-pastel-purple-300 text-pastel-purple-600' 
               : 'bg-white border-slate-200 text-slate-500 hover:text-slate-800'
@@ -251,116 +263,129 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({ onNavigate }) 
                     return (
                       <div 
                         key={kid.id} 
-                        className={`p-5 rounded-2xl border transition-all flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 ${
+                        className={`p-5 rounded-2xl border transition-all flex flex-col gap-4 ${
                           kid.status === 'online' 
                             ? 'bg-pastel-green-50/20 border-pastel-green-200/60 shadow-sm' 
                             : 'bg-white border-slate-100 hover:border-slate-200'
                         }`}
                       >
-                        {/* Kid Info */}
-                        <div className="flex items-center gap-3.5 shrink-0">
-                          <div className="relative">
-                            <Avatar type={kid.avatar} className="w-14 h-14" />
-                            {kid.status === 'online' && (
-                              <span className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-pastel-green-500 border-2 border-white rounded-full animate-ping" />
-                            )}
+                        {/* Linha Principal (Info + Progresso + Controles) */}
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 w-full">
+                          
+                          {/* Kid Info */}
+                          <div className="flex items-center gap-3.5 shrink-0">
+                            <div className="relative">
+                              <Avatar type={kid.avatar} className="w-14 h-14" />
+                              {kid.status === 'online' && (
+                                <span className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-pastel-green-500 border-2 border-white rounded-full animate-ping" />
+                              )}
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <h4 className="font-extrabold text-slate-800 text-base">{kid.nome}</h4>
+                                <span className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full ${
+                                  kid.status === 'online' ? 'bg-pastel-green-100 text-pastel-green-600' :
+                                  kid.status === 'pausado' ? 'bg-pastel-yellow-100 text-pastel-yellow-700' :
+                                  'bg-pastel-purple-100 text-pastel-purple-600'
+                                }`}>
+                                  {kid.status === 'online' ? 'Online' :
+                                   kid.status === 'pausado' ? 'Pausado' : 'Esgotado 💤'}
+                                </span>
+                              </div>
+                              <span className="text-[10px] text-slate-400 font-semibold font-parents">Idade: {kid.idade} anos • Dormir às {kid.limiteNoturno}</span>
+                            </div>
                           </div>
-                          <div>
+
+                          {/* Barra de Progresso do Tempo */}
+                          <div className="flex-1 w-full max-w-xs sm:mx-4">
+                            <div className="flex items-center justify-between text-xs text-slate-500 mb-1.5 font-bold">
+                              <span className="font-medium font-parents">Progresso Diário</span>
+                              <span>{usadoMinutos}m / {kid.limiteDiario}m</span>
+                            </div>
+                            <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden border border-slate-200/50">
+                              <div 
+                                className={`h-full ${progressBarColor} transition-all duration-500`}
+                                style={{ width: `${progressPercent}%` }}
+                              />
+                            </div>
+                            <span className="text-[9px] text-slate-400 block mt-1 font-semibold text-right">
+                              {kid.status === 'bloqueado' ? 'Tempo diário esgotado' : `Restam ${restanteMinutos} minutos`}
+                            </span>
+                          </div>
+
+                          {/* Ações de Controle Remoto */}
+                          <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 shrink-0 w-full sm:w-auto justify-end border-t sm:border-t-0 pt-3 sm:pt-0">
+                            {/* Botão Entregar Celular para a Criança */}
+                            <button
+                              onClick={() => {
+                                selecionarPerfil(kid.id);
+                                onNavigate('child-mode');
+                              }}
+                              disabled={kid.status === 'bloqueado'}
+                              className="flex items-center gap-1.5 px-3 py-2 bg-pastel-green-500 hover:bg-pastel-green-600 text-white font-extrabold text-xs rounded-xl shadow-sm hover:shadow active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed transition-all mr-1"
+                              title="Iniciar Sessão Segura e Entregar Celular para a Criança"
+                            >
+                              <Play size={12} fill="currentColor" />
+                              Entregar 📱
+                            </button>
+
+                            {kid.status === 'online' ? (
+                              <button
+                                onClick={() => pausarTempoRemoto(kid.id)}
+                                className="p-2.5 bg-pastel-yellow-50 hover:bg-pastel-yellow-100 text-pastel-yellow-600 rounded-xl border border-pastel-yellow-200 transition-colors"
+                                title="Pausar Sessão Temporariamente"
+                              >
+                                <Pause size={15} />
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => iniciarTempoRemoto(kid.id)}
+                                disabled={kid.status === 'bloqueado'}
+                                className="p-2.5 bg-pastel-green-50 hover:bg-pastel-green-100 text-pastel-green-600 disabled:opacity-30 disabled:cursor-not-allowed rounded-xl border border-pastel-green-200 transition-colors"
+                                title="Retomar Sessão da Criança"
+                              >
+                                <Play size={15} />
+                              </button>
+                            )}
+
+                            <button
+                              onClick={() => bloquearRemoto(kid.id)}
+                              disabled={kid.status === 'bloqueado'}
+                              className="p-2.5 bg-pastel-pink-50 hover:bg-pastel-pink-100 text-pastel-pink-500 disabled:opacity-30 disabled:cursor-not-allowed rounded-xl border border-pastel-pink-200 transition-colors"
+                              title="Bloquear Dispositivo Imediatamente"
+                            >
+                              <Square size={14} fill="currentColor" />
+                            </button>
+
+                            <button
+                              onClick={() => adicionarTempoRemoto(kid.id, 15)}
+                              className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-xs rounded-xl border border-slate-200 active:scale-95 transition-all"
+                              title="Presentear Criança com +15 Minutos"
+                            >
+                              +15 min
+                            </button>
+                          </div>
+
+                        </div>
+
+                        {/* Linha Secundária: Banner de Pedido de Tempo Extra (Linguagem Acolhedora) */}
+                        {kid.pediuMaisTempo && (
+                          <div className="w-full flex flex-col sm:flex-row items-center justify-between p-3.5 bg-pastel-purple-50 border border-pastel-purple-200 rounded-2xl animate-pulse gap-3.5 mt-1">
                             <div className="flex items-center gap-2">
-                              <h4 className="font-extrabold text-slate-800 text-base">{kid.nome}</h4>
-                              <span className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full ${
-                                kid.status === 'online' ? 'bg-pastel-green-100 text-pastel-green-600' :
-                                kid.status === 'pausado' ? 'bg-pastel-yellow-100 text-pastel-yellow-700' :
-                                'bg-pastel-purple-100 text-pastel-purple-600'
-                              }`}>
-                                {kid.status === 'online' ? 'Online' :
-                                 kid.status === 'pausado' ? 'Pausado' : 'Esgotado 💤'}
+                              <span className="bg-pastel-purple-100 text-pastel-purple-700 text-[10px] font-black uppercase px-2.5 py-1 rounded-lg shrink-0">📨 Pedido</span>
+                              <span className="text-slate-700 text-xs font-semibold font-parents leading-relaxed">
+                                <strong>{kid.nome}</strong> está pedindo mais 15 minutinhos na tela de bloqueio.
                               </span>
                             </div>
-                            <span className="text-[10px] text-slate-400 font-semibold font-parents">Idade: {kid.idade} anos • Dormir às {kid.limiteNoturno}</span>
-                          </div>
-                        </div>
-
-                        {/* Barra de Progresso do Tempo */}
-                        <div className="flex-1 w-full max-w-xs sm:mx-4">
-                          <div className="flex items-center justify-between text-xs text-slate-500 mb-1.5 font-bold">
-                            <span className="font-medium font-parents">Progresso Diário</span>
-                            <span>{usadoMinutos}m / {kid.limiteDiario}m</span>
-                          </div>
-                          <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden border border-slate-200/50">
-                            <div 
-                              className={`h-full ${progressBarColor} transition-all duration-500`}
-                              style={{ width: `${progressPercent}%` }}
-                            />
-                          </div>
-                          <span className="text-[9px] text-slate-400 block mt-1 font-semibold text-right">
-                            {kid.status === 'bloqueado' ? 'Tempo diário esgotado' : `Restam ${restanteMinutos} minutos`}
-                          </span>
-                        </div>
-
-                        {/* Ações de Controle Remoto Remoto */}
-                        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 shrink-0 w-full sm:w-auto justify-end border-t sm:border-t-0 pt-3 sm:pt-0">
-                          {/* Botão Entregar Celular para a Criança */}
-                          <button
-                            onClick={() => {
-                              selecionarPerfil(kid.id);
-                              onNavigate('child-mode');
-                            }}
-                            disabled={kid.status === 'bloqueado'}
-                            className="flex items-center gap-1.5 px-3 py-2 bg-pastel-green-500 hover:bg-pastel-green-600 text-white font-extrabold text-xs rounded-xl shadow-sm hover:shadow active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed transition-all mr-1"
-                            title="Iniciar Sessão Segura e Entregar Celular para a Criança"
-                          >
-                            <Play size={12} fill="currentColor" />
-                            Entregar 📱
-                          </button>
-
-                          {kid.pediuMaisTempo && (
                             <button
                               onClick={() => aprovarMaisTempo(kid.id)}
-                              className="px-3.5 py-2 bg-pastel-purple-500 hover:bg-pastel-purple-600 text-white font-extrabold text-xs rounded-xl shadow-md border-b-4 border-pastel-purple-700 animate-bounce flex items-center gap-1.5 active:scale-95 transition-all mr-2"
-                              title="Criança solicitou tempo extra de tela!"
+                              className="w-full sm:w-auto px-4 py-2 bg-pastel-purple-500 hover:bg-pastel-purple-600 text-white font-black text-xs rounded-xl shadow-md border-b-4 border-pastel-purple-700 active:scale-95 transition-all shrink-0"
+                              title="Aprovar tempo extra solicitado"
                             >
-                              <Check size={14} /> Aprovar +15 min!
+                              Aprovar +15 min! 👍
                             </button>
-                          )}
-
-                          {kid.status === 'online' ? (
-                            <button
-                              onClick={() => pausarTempoRemoto(kid.id)}
-                              className="p-2.5 bg-pastel-yellow-50 hover:bg-pastel-yellow-100 text-pastel-yellow-600 rounded-xl border border-pastel-yellow-200 transition-colors"
-                              title="Pausar Sessão Temporariamente"
-                            >
-                              <Pause size={15} />
-                            </button>
-                          ) : (
-                            <button
-                              onClick={() => iniciarTempoRemoto(kid.id)}
-                              disabled={kid.status === 'bloqueado'}
-                              className="p-2.5 bg-pastel-green-50 hover:bg-pastel-green-100 text-pastel-green-600 disabled:opacity-30 disabled:cursor-not-allowed rounded-xl border border-pastel-green-200 transition-colors"
-                              title="Retomar Sessão da Criança"
-                            >
-                              <Play size={15} />
-                            </button>
-                          )}
-
-                          <button
-                            onClick={() => bloquearRemoto(kid.id)}
-                            disabled={kid.status === 'bloqueado'}
-                            className="p-2.5 bg-pastel-pink-50 hover:bg-pastel-pink-100 text-pastel-pink-500 disabled:opacity-30 disabled:cursor-not-allowed rounded-xl border border-pastel-pink-200 transition-colors"
-                            title="Bloquear Dispositivo Imediatamente"
-                          >
-                            <Square size={14} fill="currentColor" />
-                          </button>
-
-                          <button
-                            onClick={() => adicionarTempoRemoto(kid.id, 15)}
-                            className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-xs rounded-xl border border-slate-200 active:scale-95 transition-all"
-                            title="Presentear Criança com +15 Minutos"
-                          >
-                            +15 min
-                          </button>
-                        </div>
-
+                          </div>
+                        )}
                       </div>
                     );
                   })}
@@ -368,20 +393,203 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({ onNavigate }) 
               </section>
 
               {/* Histórico Semanal Lúdico em SVG */}
-              <section className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
-                <div className="flex items-center gap-2 mb-1">
-                  <TrendingUp className="text-pastel-purple-500" size={18} />
-                  <h3 className="text-base font-extrabold text-slate-800">Histórico de Uso dos Últimos 7 Dias</h3>
-                </div>
-                <p className="text-xs text-slate-400 font-semibold mb-6">Média de consumo semanal recomendada por pediatras: 60m/dia.</p>
+              <section className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex flex-col gap-6">
+                
+                {/* Cabeçalho Interativo do Histórico */}
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <TrendingUp className="text-pastel-purple-500 animate-pulse" size={18} />
+                      <h3 className="text-base font-extrabold text-slate-800">Histórico Lúdico de Uso (Últimos 7 Dias)</h3>
+                    </div>
+                    <p className="text-xs text-slate-400 font-semibold mt-0.5">Diagnósticos e médias recomendadas por pediatras em tempo real.</p>
+                  </div>
 
-                {/* Gráfico SVG customizado */}
-                <div className="w-full bg-slate-50/50 p-5 rounded-2xl border border-slate-100">
+                  {/* Seletor de Crianças do Histórico */}
+                  <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200/50 gap-1 shrink-0 self-start lg:self-auto overflow-x-auto max-w-full no-scrollbar select-none">
+                    <button
+                      type="button"
+                      onClick={() => { setHistoryFilterId('all'); setHoveredBarInfo(null); }}
+                      className={`px-3 py-1.5 text-xs font-black rounded-lg transition-all active:scale-95 ${
+                        historyFilterId === 'all'
+                          ? 'bg-white text-pastel-purple-600 shadow-sm'
+                          : 'text-slate-500 hover:text-slate-800'
+                      }`}
+                    >
+                      Todos os Filhos
+                    </button>
+                    {perfis.map((p) => (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => { setHistoryFilterId(p.id); setHoveredBarInfo(null); }}
+                        className={`px-3 py-1.5 text-xs font-black rounded-lg transition-all active:scale-95 flex items-center gap-1.5 ${
+                          historyFilterId === p.id
+                            ? 'bg-white text-pastel-purple-600 shadow-sm'
+                            : 'text-slate-500 hover:text-slate-800'
+                        }`}
+                      >
+                        <Avatar type={p.avatar} className="w-3.5 h-3.5 shrink-0" />
+                        <span>{p.nome}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Métricas de Diagnóstico Rápido */}
+                {(() => {
+                  // Cálculos dinâmicos com base no filtro
+                  let avg = 0;
+                  let total = 0;
+                  let estrelas = 0;
+                  
+                  if (historyFilterId === 'all') {
+                    const somaMedias = perfis.reduce((soma, p) => {
+                      const somaPerf = p.historicoSeteDias.reduce((a, b) => a + b, 0);
+                      return soma + (somaPerf / 7);
+                    }, 0);
+                    avg = perfis.length > 0 ? Math.round(somaMedias / perfis.length) : 0;
+                    total = perfis.reduce((soma, p) => soma + p.historicoSeteDias.reduce((a, b) => a + b, 0), 0);
+                    estrelas = perfis.reduce((soma, p) => soma + p.estrelasAcumuladas, 0);
+                  } else {
+                    const p = perfis.find(prof => prof.id === historyFilterId);
+                    if (p) {
+                      avg = Math.round(p.historicoSeteDias.reduce((a, b) => a + b, 0) / 7);
+                      total = p.historicoSeteDias.reduce((a, b) => a + b, 0);
+                      estrelas = p.estrelasAcumuladas;
+                    }
+                  }
+
+                  // Avaliação e Cor de acordo com a média
+                  let cardBg = 'bg-emerald-50/40 border-emerald-100';
+                  let textColor = 'text-emerald-600';
+                  let ratingText = 'Excelente Equilíbrio! 🟢';
+                  let insightText = 'O tempo de tela médio está saudável e dentro do limite recomendado de 1h/dia.';
+
+                  if (avg > 60 && avg <= 120) {
+                    cardBg = 'bg-pastel-yellow-50/40 border-pastel-yellow-200/60';
+                    textColor = 'text-pastel-yellow-600';
+                    ratingText = 'Consumo Moderado 🟡';
+                    insightText = 'Recomendado introduzir 15m extras de quest física ou brincadeira offline.';
+                  } else if (avg > 120) {
+                    cardBg = 'bg-pastel-pink-50/40 border-pastel-pink-100';
+                    textColor = 'text-pastel-pink-500';
+                    ratingText = 'Limite Excedido 🔴';
+                    insightText = 'Hiperestimulação detectada. Recomendado reduzir o tempo de tela diário.';
+                  }
+
+                  // Índice de desenvolvimento neurológico lúdico
+                  // Score = (estrelas * 10) / (avg + 1) -> ponderado entre 1 e 10
+                  const scoreRaw = (estrelas * 10) / (avg + 1);
+                  const score = Math.max(3.2, Math.min(10, Math.round((scoreRaw + 5.5) * 10) / 10));
+                  
+                  let scoreLabel = 'Altamente Saudável 🌟';
+                  if (score < 6) scoreLabel = 'Atenção Necessária ⚠️';
+                  else if (score < 8.5) scoreLabel = 'Bom Equilíbrio 🚀';
+
+                  return (
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                      
+                      {/* Card Média Diária */}
+                      <div className={`p-4 rounded-2xl border shadow-xs ${cardBg}`}>
+                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Média Diária</span>
+                        <div className="flex items-baseline gap-1 mt-1.5">
+                          <span className={`text-2xl font-black ${textColor}`}>{avg}</span>
+                          <span className="text-xs text-slate-500 font-bold font-parents">m / dia</span>
+                        </div>
+                        <span className="text-[10px] font-black uppercase mt-1 block tracking-wider">{ratingText}</span>
+                      </div>
+
+                      {/* Card Total Semanal */}
+                      <div className="p-4 rounded-2xl border border-slate-100 bg-slate-50/50 shadow-xs">
+                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Total na Semana</span>
+                        <div className="flex items-baseline gap-1 mt-1.5">
+                          <span className="text-2xl font-black text-slate-700">{(total / 60).toFixed(1)}</span>
+                          <span className="text-xs text-slate-500 font-bold font-parents">horas</span>
+                        </div>
+                        <span className="text-[10px] text-slate-400 font-semibold block mt-1 leading-tight font-parents">{insightText}</span>
+                      </div>
+
+                      {/* Card Estrelas */}
+                      <div className="p-4 rounded-2xl border border-slate-100 bg-slate-50/50 shadow-xs">
+                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Estrelas Acumuladas</span>
+                        <div className="flex items-baseline gap-1 mt-1.5">
+                          <span className="text-2xl font-black text-pastel-yellow-500">★ {estrelas}</span>
+                        </div>
+                        <span className="text-[10px] text-slate-400 font-semibold block mt-1 leading-tight font-parents">Estrelas conquistadas em quests e missões no mundo real.</span>
+                      </div>
+
+                      {/* Card Índice Neuropediátrico */}
+                      <div className="p-4 rounded-2xl border border-slate-100 bg-gradient-to-br from-pastel-purple-50/40 to-pastel-blue-50/40 shadow-xs">
+                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Score de Equilíbrio</span>
+                        <div className="flex items-baseline gap-1 mt-1.5">
+                          <span className="text-2xl font-black text-pastel-purple-600">{score.toFixed(1)}</span>
+                          <span className="text-xs text-slate-500 font-bold font-parents">/ 10</span>
+                        </div>
+                        <span className="text-[10px] text-pastel-purple-600 font-black uppercase block mt-1 tracking-wider">{scoreLabel}</span>
+                      </div>
+
+                    </div>
+                  );
+                })()}
+
+                {/* Área do Gráfico */}
+                <div className="w-full bg-slate-50/50 p-5 rounded-2xl border border-slate-100 relative">
+                  
+                  {/* Tooltip Flutuante Interativo */}
+                  {hoveredBarInfo && (
+                    <div className="absolute top-2.5 left-4 bg-slate-900/95 text-white text-[11px] py-1.5 px-3.5 rounded-xl shadow-lg z-20 flex items-center gap-1.5 font-parents border border-slate-700/50 animate-fade-in">
+                      <span className="text-pastel-yellow-400 font-black">★</span>
+                      <span>
+                        <strong>{perfis.find(p => p.id === hoveredBarInfo.childId)?.nome}</strong>: {hoveredBarInfo.val} min em {['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'][hoveredBarInfo.dayIdx]}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Indicadores de Limite Ativos (Flutuando no Top Right do Painel para não poluir o gráfico) */}
+                  <div className="absolute top-2.5 right-4 hidden sm:flex items-center gap-2 select-none pointer-events-none z-10">
+                    {historyFilterId !== 'all' ? (() => {
+                      const p = perfis.find(prof => prof.id === historyFilterId);
+                      if (!p) return null;
+                      return (
+                        <div className="flex items-center gap-1.5 bg-pastel-pink-50 border border-pastel-pink-200 px-2.5 py-1 rounded-lg text-[9px] font-black text-pastel-pink-500 shadow-2xs">
+                          <span className="w-1.5 h-1.5 bg-pastel-pink-500 rounded-full animate-pulse" />
+                          <span>Meta do(a) {p.nome}: {p.limiteDiario}m</span>
+                        </div>
+                      );
+                    })() : null}
+                    <div className="flex items-center gap-1.5 bg-pastel-green-50 border border-pastel-green-200 px-2.5 py-1 rounded-lg text-[9px] font-black text-pastel-green-600 shadow-2xs">
+                      <span className="w-1.5 h-1.5 bg-pastel-green-500 rounded-full" />
+                      <span>Zona Segura: 60m</span>
+                    </div>
+                  </div>
+
+                  {/* SVG do Gráfico Responsivo */}
                   <svg className="w-full h-44" viewBox="0 0 600 180" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    {/* Definições de Gradientes */}
+                    <defs>
+                      <linearGradient id="grad-blue" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#46b3cc" />
+                        <stop offset="100%" stopColor="#338ea3" />
+                      </linearGradient>
+                      <linearGradient id="grad-pink" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#f67280" />
+                        <stop offset="100%" stopColor="#d55160" />
+                      </linearGradient>
+                      <linearGradient id="grad-purple" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#9e74d6" />
+                        <stop offset="100%" stopColor="#7b53b2" />
+                      </linearGradient>
+                      <linearGradient id="grad-yellow" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#f1c43f" />
+                        <stop offset="100%" stopColor="#d4a727" />
+                      </linearGradient>
+                    </defs>
+
                     {/* Linhas de grade horizontais */}
-                    <line x1="40" y1="20" x2="560" y2="20" stroke="#f1f5f9" strokeWidth="1" />
-                    <line x1="40" y1="60" x2="560" y2="60" stroke="#f1f5f9" strokeWidth="1" />
-                    <line x1="40" y1="100" x2="560" y2="100" stroke="#f1f5f9" strokeWidth="1" />
+                    <line x1="40" y1="20" x2="560" y2="20" stroke="#e2e8f0" strokeWidth="1" strokeDasharray="3 3" />
+                    <line x1="40" y1="60" x2="560" y2="60" stroke="#e2e8f0" strokeWidth="1" strokeDasharray="3 3" />
+                    <line x1="40" y1="100" x2="560" y2="100" stroke="#e2e8f0" strokeWidth="1" strokeDasharray="3 3" />
                     <line x1="40" y1="140" x2="560" y2="140" stroke="#cbd5e1" strokeWidth="1.5" /> {/* Linha Zero */}
 
                     {/* Rótulos do Eixo Y */}
@@ -390,81 +598,194 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({ onNavigate }) 
                     <text x="15" y="104" fill="#94a3b8" fontSize="10" fontWeight="bold">1h</text>
                     <text x="15" y="144" fill="#94a3b8" fontSize="10" fontWeight="bold">0</text>
 
-                    {/* Barra Guias Recomendadas (Pediatria) */}
-                    <rect x="40" y="80" width="520" height="40" fill="#3db87a" opacity="0.04" rx="2" />
-                    <text x="490" y="92" fill="#3db87a" fontSize="9" fontWeight="bold" opacity="0.8">Zona Segura</text>
+                    {/* Guia Pediatria Padrão (60m) - Sempre visível como referência verde de Zona Segura */}
+                    <line x1="40" y1="100" x2="560" y2="100" stroke="#3db87a" strokeWidth="1.5" strokeDasharray="4 4" opacity="0.8" />
 
-                    {/* Loop de renderização das barras */}
+                    {/* Linha de Limite do Perfil Ativo (Meta Estabelecida) - Visível quando um filho específico é selecionado */}
+                    {historyFilterId !== 'all' && (() => {
+                      const p = perfis.find(prof => prof.id === historyFilterId);
+                      if (p) {
+                        const yLimit = Math.max(10, 140 - (p.limiteDiario / 180) * 115);
+                        return (
+                          <line x1="40" y1={yLimit} x2="560" y2={yLimit} stroke="#f67280" strokeWidth="1.5" strokeDasharray="4 4" opacity="0.8" />
+                        );
+                      }
+                      return null;
+                    })()}
+
+                    {/* Renderização das Barras de Histórico */}
                     {['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'].map((dia, idx) => {
                       const spacing = 72;
                       const xStart = 55 + idx * spacing;
-                      
-                      // Mock de barras de tempo baseados no Leo e Gabi
-                      const valGabi = [40, 50, 48, 55, 46, 52, 25][idx] || 0;
-                      const valLeo = [90, 110, 85, 140, 95, 115, 105][idx] || 0;
-
-                      // Altura em pixels (máximo 120px)
                       const maxVal = 180; // 3h = 180m
-                      const heightGabi = Math.min(115, (valGabi / maxVal) * 115);
-                      const heightLeo = Math.min(115, (valLeo / maxVal) * 115);
 
-                      const yGabi = 140 - heightGabi;
-                      const yLeo = 140 - heightLeo;
+                      if (historyFilterId === 'all') {
+                        // Renderiza todos os filhos atômicos lado a lado
+                        return (
+                          <g key={dia}>
+                            {perfis.map((kid, kIdx) => {
+                              const val = kid.historicoSeteDias[idx] || 0;
+                              const height = Math.min(115, (val / maxVal) * 115);
+                              const y = 140 - height;
+                              const width = 10;
+                              // Ajusta coordenada X para posicionar colunas lado a lado
+                              const x = xStart + kIdx * 13 - ((perfis.length * 13) / 2) + 6;
 
-                      return (
-                        <g key={dia}>
-                          {/* Leo (Barra Azul) */}
-                          <rect 
-                            x={xStart} 
-                            y={yLeo} 
-                            width="14" 
-                            height={heightLeo} 
-                            rx="4" 
-                            fill="#46b3cc" 
-                            className="transition-all hover:opacity-80"
-                          />
-                          {/* Gabi (Barra Rosa) */}
-                          <rect 
-                            x={xStart + 18} 
-                            y={yGabi} 
-                            width="14" 
-                            height={heightGabi} 
-                            rx="4" 
-                            fill="#f67280" 
-                            className="transition-all hover:opacity-80"
-                          />
-                          {/* Nome do Dia */}
-                          <text 
-                            x={xStart + 16} 
-                            y="160" 
-                            fill="#64748b" 
-                            fontSize="10" 
-                            fontWeight="bold" 
-                            textAnchor="middle"
-                          >
-                            {dia}
-                          </text>
-                        </g>
-                      );
+                              const colors = {
+                                lion: 'url(#grad-blue)',
+                                cat: 'url(#grad-pink)',
+                                owl: 'url(#grad-purple)',
+                                bear: 'url(#grad-yellow)'
+                              };
+                              const fillColor = colors[kid.avatar] || 'url(#grad-blue)';
+
+                              // Destaques dinâmicos interativos
+                              const isHovered = hoveredBarInfo && hoveredBarInfo.childId === kid.id && hoveredBarInfo.dayIdx === idx;
+                              const isAnyHovered = hoveredBarInfo !== null;
+                              const barOpacity = isAnyHovered ? (isHovered ? 1 : 0.35) : 0.95;
+                              const barScale = isHovered ? 'scale(1.15)' : 'scale(1)';
+                              const barFilter = isHovered ? 'brightness(1.15) drop-shadow(0px 3px 5px rgba(0,0,0,0.22))' : 'none';
+
+                              return (
+                                <rect
+                                  key={kid.id}
+                                  x={x}
+                                  y={y}
+                                  width={width}
+                                  height={Math.max(2, height)}
+                                  rx="3"
+                                  fill={fillColor}
+                                  style={{
+                                    opacity: barOpacity,
+                                    transform: barScale,
+                                    transformOrigin: `${x + width / 2}px ${y + height}px`,
+                                    filter: barFilter,
+                                    transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)'
+                                  }}
+                                  className="cursor-pointer"
+                                  onMouseEnter={() => setHoveredBarInfo({ childId: kid.id, dayIdx: idx, val })}
+                                  onMouseLeave={() => setHoveredBarInfo(null)}
+                                />
+                              );
+                            })}
+                            
+                            {/* Rótulo do Dia */}
+                            <text x={xStart + 6} y="160" fill="#64748b" fontSize="10" fontWeight="bold" textAnchor="middle">{dia}</text>
+                          </g>
+                        );
+                      } else {
+                        // Renderiza apenas o filho filtrado com colunas mais encorpadas e atraentes
+                        const kid = perfis.find(p => p.id === historyFilterId);
+                        if (!kid) return null;
+
+                        const val = kid.historicoSeteDias[idx] || 0;
+                        const height = Math.min(115, (val / maxVal) * 115);
+                        const y = 140 - height;
+                        const width = 28;
+                        const x = xStart - 8;
+
+                        const colors = {
+                          lion: 'url(#grad-blue)',
+                          cat: 'url(#grad-pink)',
+                          owl: 'url(#grad-purple)',
+                          bear: 'url(#grad-yellow)'
+                        };
+                        const fillColor = colors[kid.avatar] || 'url(#grad-blue)';
+
+                        // Destaques dinâmicos interativos
+                        const isHovered = hoveredBarInfo && hoveredBarInfo.childId === kid.id && hoveredBarInfo.dayIdx === idx;
+                        const isAnyHovered = hoveredBarInfo !== null;
+                        const barOpacity = isAnyHovered ? (isHovered ? 1 : 0.35) : 0.95;
+                        const barScale = isHovered ? 'scale(1.08)' : 'scale(1)';
+                        const barFilter = isHovered ? 'brightness(1.12) drop-shadow(0px 4px 6px rgba(0,0,0,0.18))' : 'none';
+
+                        return (
+                          <g key={dia}>
+                            <rect
+                              x={x}
+                              y={y}
+                              width={width}
+                              height={Math.max(2, height)}
+                              rx="6"
+                              fill={fillColor}
+                              style={{
+                                opacity: barOpacity,
+                                transform: barScale,
+                                transformOrigin: `${x + width / 2}px ${y + height}px`,
+                                filter: barFilter,
+                                transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)'
+                              }}
+                              className="cursor-pointer"
+                              onMouseEnter={() => setHoveredBarInfo({ childId: kid.id, dayIdx: idx, val })}
+                              onMouseLeave={() => setHoveredBarInfo(null)}
+                            />
+                            
+                            {/* Rótulo do Dia */}
+                            <text x={xStart + 6} y="160" fill="#64748b" fontSize="10" fontWeight="bold" textAnchor="middle">{dia}</text>
+                          </g>
+                        );
+                      }
                     })}
                   </svg>
+                  
+                  {/* Legenda Dinâmica baseada no filtro */}
+                  <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 mt-4 text-xs font-bold text-slate-500 border-t border-slate-100 pt-3">
+                    {historyFilterId === 'all' ? (
+                      perfis.map(kid => {
+                        const colors = {
+                          lion: 'bg-pastel-blue-500',
+                          cat: 'bg-pastel-pink-500',
+                          owl: 'bg-pastel-purple-500',
+                          bear: 'bg-pastel-yellow-500'
+                        };
+                        const classBg = colors[kid.avatar] || 'bg-slate-400';
+                        const media = Math.round(kid.historicoSeteDias.reduce((a, b) => a + b, 0) / 7);
 
-                  {/* Legenda do Gráfico */}
-                  <div className="flex items-center justify-center gap-6 mt-4 text-xs font-bold text-slate-500">
+                        return (
+                          <div key={kid.id} className="flex items-center gap-1.5 select-none cursor-pointer" onClick={() => setHistoryFilterId(kid.id)}>
+                            <span className={`w-3.5 h-3.5 ${classBg} rounded-md inline-block`} />
+                            <span>{kid.nome} (Média: {media}m)</span>
+                          </div>
+                        );
+                      })
+                    ) : (
+                      (() => {
+                        const kid = perfis.find(p => p.id === historyFilterId);
+                        if (!kid) return null;
+                        
+                        const colors = {
+                          lion: 'bg-pastel-blue-500',
+                          cat: 'bg-pastel-pink-500',
+                          owl: 'bg-pastel-purple-500',
+                          bear: 'bg-pastel-yellow-500'
+                        };
+                        const classBg = colors[kid.avatar] || 'bg-slate-400';
+                        const media = Math.round(kid.historicoSeteDias.reduce((a, b) => a + b, 0) / 7);
+
+                        return (
+                          <div className="flex items-center gap-1.5">
+                            <span className={`w-3.5 h-3.5 ${classBg} rounded-md inline-block`} />
+                            <span>Média de Uso do(a) {kid.nome}: {media}m / dia</span>
+                          </div>
+                        );
+                      })()
+                    )}
+                    
                     <div className="flex items-center gap-1.5">
-                      <span className="w-3.5 h-3.5 bg-pastel-blue-500 rounded-md inline-block" />
-                      <span>Leo (Média: 105m)</span>
+                      <span className="w-6 h-0.5 border-t border-b border-dashed border-pastel-green-500 inline-block" />
+                      <span className="text-[11px] text-slate-400">Diretriz Pediatria</span>
                     </div>
-                    <div className="flex items-center gap-1.5">
-                      <span className="w-3.5 h-3.5 bg-pastel-pink-500 rounded-md inline-block" />
-                      <span>Gabi (Média: 48m)</span>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <span className="w-8 h-2 bg-pastel-green-500/10 border-t border-b border-pastel-green-200 rounded-sm inline-block" />
-                      <span>Limite Recomendado</span>
-                    </div>
+
+                    {historyFilterId !== 'all' && (
+                      <div className="flex items-center gap-1.5">
+                        <span className="w-6 h-0.5 border-t border-b border-dashed border-pastel-pink-500 inline-block" />
+                        <span className="text-[11px] text-slate-400">Meta Estabelecida</span>
+                      </div>
+                    )}
                   </div>
+
                 </div>
+
               </section>
 
             </div>
@@ -492,9 +813,14 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({ onNavigate }) 
                 </div>
               ) : (
                 <div className="flex flex-col gap-4">
-                  {alertas.map((alert) => (
-                    <HealthAlertCard key={alert.id} alerta={alert} />
-                  ))}
+                  {[...alertas]
+                    .sort((a, b) => {
+                      const priority = { critico: 4, preocupante: 3, alerta: 2, evolucao: 1 };
+                      return (priority[b.gravidade] || 0) - (priority[a.gravidade] || 0);
+                    })
+                    .map((alert) => (
+                      <HealthAlertCard key={alert.id} alerta={alert} />
+                    ))}
                 </div>
               )}
             </div>
@@ -602,6 +928,166 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({ onNavigate }) 
                 </div>
               </section>
 
+            </div>
+          )}
+
+          {/* TAB 4: RANKING DE MISSÕES CUMPRIDAS */}
+          {activeTab === 'ranking' && (
+            <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex flex-col gap-6 font-kids">
+              <div className="text-center md:text-left">
+                <h3 className="text-lg font-black text-slate-800 flex items-center justify-center md:justify-start gap-2">
+                  <Trophy className="text-pastel-yellow-500 fill-pastel-yellow-200 animate-wiggle shrink-0" size={22} />
+                  Ranking de Missões de Equilíbrio
+                </h3>
+                <p className="text-xs text-slate-400 font-semibold mt-1 font-parents">
+                  Acompanhe quem está cumprindo mais atividades offline no mundo real e conquistando estrelas saudáveis!
+                </p>
+              </div>
+
+              {/* Pódio Gráfico 3D */}
+              {(() => {
+                const perfisOrdenados = [...perfis].sort((a, b) => b.estrelasAcumuladas - a.estrelasAcumuladas);
+                const primeiro = perfisOrdenados[0];
+                const segundo = perfisOrdenados[1];
+                const terceiro = perfisOrdenados[2];
+
+                return (
+                  <div className="w-full bg-slate-50/50 p-6 rounded-2xl border border-slate-100/80 my-2">
+                    <div className="flex items-end justify-center gap-2 sm:gap-6 md:gap-10 h-60 max-w-lg mx-auto relative select-none pb-2">
+                      
+                      {/* 2º Lugar */}
+                      {segundo && (
+                        <div className="flex flex-col items-center animate-pop" style={{ animationDelay: '0.1s' }}>
+                          <div className="relative mb-2">
+                            <Avatar type={segundo.avatar} className="w-14 h-14 sm:w-16 sm:h-16 hover:rotate-3 transition-transform" />
+                            <span className="absolute -top-1 -right-1 bg-slate-300 text-slate-700 text-[10px] font-black w-5.5 h-5.5 rounded-full flex items-center justify-center border-2 border-white shadow-md">
+                              2º
+                            </span>
+                          </div>
+                          <span className="text-xs font-black text-slate-700 font-kids truncate max-w-[80px]">{segundo.nome}</span>
+                          <span className="text-[10px] text-pastel-yellow-600 font-black mb-1 font-parents">★ {segundo.estrelasAcumuladas} estrelas</span>
+                          <div className="w-16 sm:w-20 bg-gradient-to-t from-slate-200 to-slate-100 border-t-4 border-slate-300 h-20 rounded-t-2xl shadow-sm flex items-center justify-center">
+                            <Medal size={24} className="text-slate-400 fill-slate-50" />
+                          </div>
+                        </div>
+                      )}
+
+                      {/* 1º Lugar */}
+                      {primeiro && (
+                        <div className="flex flex-col items-center animate-pop">
+                          <div className="relative mb-2">
+                            <Crown className="w-7 h-7 text-pastel-yellow-500 fill-pastel-yellow-200 absolute -top-5 left-1/2 -translate-x-1/2 animate-bounce" />
+                            <Avatar type={primeiro.avatar} className="w-18 h-18 sm:w-20 sm:h-20 hover:scale-105 transition-transform" />
+                            <span className="absolute -top-1 -right-1 bg-pastel-yellow-400 text-white text-[11px] font-black w-6.5 h-6.5 rounded-full flex items-center justify-center border-2 border-white shadow-md animate-pulse">
+                              1º
+                            </span>
+                          </div>
+                          <span className="text-sm font-black text-slate-800 font-kids truncate max-w-[100px]">{primeiro.nome}</span>
+                          <span className="text-[11px] text-pastel-yellow-600 font-black mb-1 font-parents">★ {primeiro.estrelasAcumuladas} estrelas</span>
+                          <div className="w-20 sm:w-24 bg-gradient-to-t from-pastel-yellow-200 to-pastel-yellow-100 border-t-4 border-pastel-yellow-400 h-28 rounded-t-2xl shadow-md flex items-center justify-center">
+                            <Trophy size={32} className="text-pastel-yellow-500 fill-pastel-yellow-200" />
+                          </div>
+                        </div>
+                      )}
+
+                      {/* 3º Lugar */}
+                      {terceiro && (
+                        <div className="flex flex-col items-center animate-pop" style={{ animationDelay: '0.2s' }}>
+                          <div className="relative mb-2">
+                            <Avatar type={terceiro.avatar} className="w-12 h-12 sm:w-14 sm:h-14 hover:-rotate-3 transition-transform" />
+                            <span className="absolute -top-1 -right-1 bg-amber-600 text-white text-[9px] font-black w-4.5 h-4.5 rounded-full flex items-center justify-center border-2 border-white shadow-md">
+                              3º
+                            </span>
+                          </div>
+                          <span className="text-xs font-black text-slate-700 font-kids truncate max-w-[80px]">{terceiro.nome}</span>
+                          <span className="text-[10px] text-pastel-yellow-600 font-black mb-1 font-parents">★ {terceiro.estrelasAcumuladas} estrelas</span>
+                          <div className="w-14 sm:w-16 bg-gradient-to-t from-amber-200 to-amber-100 border-t-4 border-amber-300 h-14 rounded-t-2xl shadow-sm flex items-center justify-center">
+                            <Medal size={20} className="text-amber-700 fill-amber-50" />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* Tabela / Leaderboard */}
+              <div className="flex flex-col gap-3 font-parents">
+                <h4 className="text-xs font-black text-slate-400 uppercase tracking-wider mb-1">Tabela de Classificação</h4>
+                
+                {[...perfis]
+                  .sort((a, b) => b.estrelasAcumuladas - a.estrelasAcumuladas)
+                  .map((perfil, index) => {
+                    const positions = [
+                      'bg-pastel-yellow-500 text-white border-pastel-yellow-400',
+                      'bg-slate-300 text-slate-700 border-slate-200',
+                      'bg-amber-600 text-white border-amber-500',
+                    ];
+                    
+                    const themeConfig = {
+                      cat: 'hover:border-pastel-pink-300 hover:shadow-pastel-pink-50',
+                      lion: 'hover:border-pastel-yellow-300 hover:shadow-pastel-yellow-50',
+                      owl: 'hover:border-pastel-purple-300 hover:shadow-pastel-purple-50',
+                      bear: 'hover:border-pastel-blue-300 hover:shadow-pastel-blue-50'
+                    };
+
+                    const hoverStyle = themeConfig[perfil.avatar] || themeConfig.bear;
+
+                    return (
+                      <div 
+                        key={perfil.id}
+                        className={`flex items-center justify-between p-3.5 bg-white rounded-2xl border border-slate-100 hover:shadow-md transition-all active:scale-99 ${hoverStyle}`}
+                      >
+                        {/* Posição e Info da Criança */}
+                        <div className="flex items-center gap-3">
+                          {/* Emblema de Posição */}
+                          <span className={`w-6.5 h-6.5 rounded-full flex items-center justify-center text-xs font-black border shadow-sm ${
+                            index < 3 ? positions[index] : 'bg-slate-50 text-slate-400 border-slate-200'
+                          }`}>
+                            {index + 1}
+                          </span>
+
+                          <Avatar type={perfil.avatar} className="w-10 h-10 shrink-0" />
+                          
+                          <div>
+                            <div className="flex items-center gap-1.5">
+                              <h5 className="font-black text-slate-800 text-sm font-kids">{perfil.nome}</h5>
+                              {index === 0 && (
+                                <span className="bg-pastel-yellow-50 text-pastel-yellow-600 text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-md border border-pastel-yellow-200 animate-pulse">
+                                  Líder 👑
+                                </span>
+                              )}
+                            </div>
+                            <span className="text-[10px] text-slate-400 font-semibold font-parents">Idade: {perfil.idade} anos</span>
+                          </div>
+                        </div>
+
+                        {/* Estatísticas de Missões e Estrelas */}
+                        <div className="flex items-center gap-3">
+                          {/* Missões Cumpridas */}
+                          <div className="flex items-center gap-1 bg-pastel-green-50 text-pastel-green-600 px-3 py-1.5 rounded-full font-black text-xs font-kids">
+                            <Check size={13} className="stroke-[3]" />
+                            <span>{perfil.missoesCumpridas} Missões</span>
+                          </div>
+
+                          {/* Estrelas */}
+                          <div className="flex items-center gap-1 bg-pastel-yellow-50 text-pastel-yellow-600 px-3 py-1.5 rounded-full font-black text-xs">
+                            <span className="text-pastel-yellow-500 font-bold">★</span>
+                            <span className="text-slate-700">{perfil.estrelasAcumuladas}</span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+
+              {/* Dica lúdica */}
+              <div className="bg-gradient-to-r from-pastel-purple-50/50 to-pastel-blue-50/50 border border-pastel-purple-100 p-4 rounded-2xl flex items-center gap-3 font-parents">
+                <span className="text-lg animate-float">🎖️</span>
+                <p className="text-xs text-slate-500 font-semibold leading-relaxed">
+                  <strong>Desafio de Equilíbrio Digital</strong>: Toda vez que as crianças concluem uma missão saudável offline no simulador, elas ganham estrelas e sobem no ranking! Isso as motiva a balancear o tempo de tela com diversão no mundo real.
+                </p>
+              </div>
             </div>
           )}
 
@@ -746,22 +1232,18 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({ onNavigate }) 
               ))}
             </div>
 
-            {/* Molde físico de Smartphone */}
-            <div className="w-[360px] h-[720px] bg-slate-900 rounded-[50px] border-[10px] border-slate-800 shadow-2xl relative flex flex-col overflow-hidden ring-4 ring-slate-800/20">
+            {/* Molde físico de Smartphone (Celular Convencional) */}
+            <div className="w-[360px] h-[720px] bg-slate-900 rounded-[38px] border-[8px] border-slate-800 shadow-2xl relative flex flex-col overflow-hidden ring-4 ring-slate-800/20">
               
-              {/* Notch superior do celular */}
-              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-28 h-5 bg-slate-800 rounded-b-2xl z-50 flex items-center justify-center">
-                <div className="w-12 h-1 bg-slate-900 rounded-full" />
-                <div className="w-2.5 h-2.5 bg-slate-950 rounded-full ml-2 border border-slate-800/40" />
+              {/* Câmera frontal punch-hole centralizada (Celular convencional) */}
+              <div className="absolute top-2.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-slate-950 rounded-full z-50 flex items-center justify-center border border-slate-800/60 shadow-inner">
+                <div className="w-1 h-1 bg-blue-900/50 rounded-full" />
               </div>
 
-              {/* Botão de Home Bar inferior do iOS simulado */}
-              <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 w-24 h-1 bg-slate-800 rounded-full z-50" />
-
               {/* Tela do celular (Viewport) */}
-              <div className="flex-1 w-full bg-white overflow-hidden relative select-none" style={{ fontSize: '13.5px' }}>
+              <div className="flex-1 w-full bg-white overflow-y-auto overflow-x-hidden no-scrollbar relative select-none" style={{ fontSize: '13.5px' }}>
                 <div className="h-full w-full flex flex-col">
-                  <ChildInterface onNavigate={() => {}} className="h-full min-h-full p-3" />
+                  <ChildInterface onNavigate={() => {}} className="h-full min-h-full p-3" isCompact={true} />
                 </div>
               </div>
 
