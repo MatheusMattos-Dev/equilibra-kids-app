@@ -1,0 +1,131 @@
+/* Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@300..700&family=Outfit:wght@300..900&display=swap');
+
+@import "tailwindcss";
+
+@theme {
+  /* Fontes Personalizadas */
+  --font-kids: "Fredoka", "Outfit", system-ui, -apple-system, sans-serif;
+  --font-parents: "Outfit", system-ui, -apple-system, sans-serif;
+
+  /* Cores Lúdicas Harmoniosas (Base HSL) */
+  --color-pastel-green-50: #f2fbf7;
+  --color-pastel-green-100: #e2f7ed;
+  --color-pastel-green-200: #c2efd7;
+  --color-pastel-green-500: #3db87a;
+  --color-pastel-green-600: #2d945f;
+
+  --color-pastel-blue-50: #f4fafc;
+  --color-pastel-blue-100: #e3f3f7;
+  --color-pastel-blue-200: #c0e5ee;
+  --color-pastel-blue-500: #46b3cc;
+  --color-pastel-blue-600: #338ea3;
+
+  --color-pastel-yellow-50: #fffdf5;
+  --color-pastel-yellow-100: #fef8dd;
+  --color-pastel-yellow-200: #fdf0b0;
+  --color-pastel-yellow-500: #f1c43f;
+  --color-pastel-yellow-600: #d4a727;
+
+  --color-pastel-pink-50: #fff6f8;
+  --color-pastel-pink-100: #ffe8ee;
+  --color-pastel-pink-200: #ffcbd8;
+  --color-pastel-pink-500: #f67280;
+
+  --color-pastel-purple-50: #f9f6fc;
+  --color-pastel-purple-100: #efe8f9;
+  --color-pastel-purple-200: #decbf2;
+  --color-pastel-purple-500: #9e74d6;
+  --color-pastel-purple-600: #7b53b2;
+
+  --color-soft-dark-50: #f8f9fa;
+  --color-soft-dark-100: #eef1f5;
+  --color-soft-dark-800: #1e222b;
+  --color-soft-dark-900: #12141a;
+
+  /* Animações e Transições Personalizadas */
+  --animate-wiggle: wiggle 0.5s ease-in-out infinite;
+  --animate-float: float 4s ease-in-out infinite;
+  --animate-pulse-slow: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  --animate-pop: pop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+/* Definição de Animações */
+@keyframes wiggle {
+  0%, 100% { transform: rotate(-3deg); }
+  50% { transform: rotate(3deg); }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  50% { transform: translateY(-10px) rotate(1deg); }
+}
+
+@keyframes pop {
+  0% { transform: scale(0.9); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* Reset Global e Personalização de Fundo */
+html, body {
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  background: radial-gradient(circle at top left, #f4fafc 0%, #f9f6fc 100%);
+  color: #334155; /* Slate 700 */
+  overflow-x: hidden;
+  font-family: var(--font-parents);
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Resetar o comportamento padrão do Vite Boilerplate para o elemento #root */
+#root {
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  text-align: left;
+  border-inline: none;
+  min-height: 100vh;
+  display: block;
+  box-sizing: border-box;
+}
+
+/* Esconder barra de rolagem horizontal padrão no Windows */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Classes Utilitárias do Filtro Glassmorphic */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.04);
+}
+
+.glass-panel-dark {
+  background: rgba(30, 34, 43, 0.8);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.15);
+}
+
+/* Modo escuro suave opcional para elementos específicos */
+.dark-mode-transition {
+  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}
