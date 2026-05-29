@@ -53,13 +53,17 @@ export const HealthAlertCard: React.FC<HealthAlertCardProps> = ({ alerta, onReso
         return <Eye size={20} />;
       case 'EVOLUCAO_POSITIVA':
         return <TrendingUp size={20} className="animate-pulse text-pastel-green-600" />;
+
       default:
         return <AlertTriangle size={20} />;
     }
   };
 
   return (
-    <div className={`p-5 rounded-2xl border ${config.bg} ${config.borderLeft} shadow-sm glass-panel transition-all hover:shadow-md font-parents animate-pop`}>
+    <div 
+      role="alert"
+      className={`p-5 rounded-2xl border ${config.bg} ${config.borderLeft} shadow-sm glass-panel transition-all hover:shadow-md font-parents animate-pop`}
+    >
       {/* Header do Alerta */}
       <div className="flex flex-wrap items-center justify-between gap-2 mb-3.5">
         <div className="flex items-center gap-3">
@@ -70,7 +74,10 @@ export const HealthAlertCard: React.FC<HealthAlertCardProps> = ({ alerta, onReso
             <span className={`text-[10px] font-black uppercase tracking-widest px-2.5 py-0.5 rounded-full ${config.tagBg}`}>
               {config.label}
             </span>
-            <h4 className="text-base font-bold text-slate-800 mt-1">{alerta.titulo}</h4>
+            <h4 className="text-base font-bold text-slate-800 mt-1">
+              <span className="sr-only">Alerta Pediátrico - Gravidade {config.label}: </span>
+              {alerta.titulo}
+            </h4>
           </div>
         </div>
         <div className="bg-slate-100 text-slate-600 font-extrabold text-xs px-3 py-1 rounded-full border border-slate-200">

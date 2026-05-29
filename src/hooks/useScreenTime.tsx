@@ -16,6 +16,8 @@ export interface ChildProfile {
   usoApos22hCount: number; // ocorrências detectadas no histórico
   excedeuDiasSeguidos: number; // sequência recente de dias excedendo
   limiteNoturno: string; // Ex: "21:30" ou "22:00"
+  horarioInicioPermitido: string; // Ex: "14:00"
+  horarioFimPermitido: string; // Ex: "18:00"
 }
 
 // Tipos para Alertas de Saúde
@@ -31,12 +33,32 @@ export interface HealthAlert {
   gravidade: 'alerta' | 'preocupante' | 'critico' | 'evolucao';
 }
 
+// Preferências para o Relatório por E-mail
+export interface EmailConfig {
+  email: string;
+  ativo: boolean;
+  incluirAlertas: boolean;
+  incluirRanking: boolean;
+}
+
+// Tipo para Missões (Quests) Offline Customizáveis
+export interface Quest {
+  id: string;
+  titulo: string;
+  descricao: string;
+  recompensa: number; // estrelas
+  icone: 'smile' | 'palette' | 'droplet' | 'compass' | 'book' | 'star' | 'run' | 'clean';
+  custom?: boolean;
+}
+
 // Interface do Contexto
 interface ScreenTimeContextProps {
   perfis: ChildProfile[];
   activeProfileId: string | null;
   turboMode: boolean;
   alertas: HealthAlert[];
+  emailConfig: EmailConfig;
+  quests: Quest[];
   setActiveProfileId: (id: string | null) => void;
   setTurboMode: (enabled: boolean) => void;
   selecionarPerfil: (id: string) => void;
@@ -46,9 +68,12 @@ interface ScreenTimeContextProps {
   adicionarTempoRemoto: (id: string, minutos: number) => void;
   pedirMaisTempo: (id: string) => void;
   aprovarMaisTempo: (id: string) => void;
-  redefinirLimite: (id: string, novoLimite: number, limiteNoturno: string) => void;
+  redefinirLimite: (id: string, novoLimite: number, limiteNoturno: string, inicioPermitido: string, fimPermitido: string) => void;
   concluirAtividadeOffline: (id: string, estrelas: number) => void;
-  adicionarNovoPerfil: (nome: string, idade: number, limiteDiario: number, avatar: 'lion' | 'owl' | 'cat' | 'bear', limiteNoturno: string) => void;
+  adicionarNovoPerfil: (nome: string, idade: number, limiteDiario: number, avatar: 'lion' | 'owl' | 'cat' | 'bear', limiteNoturno: string, inicioPermitido: string, fimPermitido: string) => void;
+  atualizarEmailConfig: (config: EmailConfig) => void;
+  adicionarQuestCustomizada: (titulo: string, descricao: string, recompensa: number, icone: 'smile' | 'palette' | 'droplet' | 'compass' | 'book' | 'star' | 'run' | 'clean') => void;
+  deletarQuestCustomizada: (id: string) => void;
   resetarSimulador: () => void;
 }
 
@@ -68,7 +93,9 @@ const INITIAL_PROFILES: ChildProfile[] = [
     historicoSeteDias: [50, 48, 55, 46, 52, 49, 50], // Excedeu o limite de 45 nos últimos 7 dias consecutivos!
     usoApos22hCount: 0,
     excedeuDiasSeguidos: 7,
-    limiteNoturno: '21:00'
+    limiteNoturno: '21:00',
+    horarioInicioPermitido: '09:00',
+    horarioFimPermitido: '20:00'
   },
   {
     id: 'leo-2',
@@ -84,7 +111,9 @@ const INITIAL_PROFILES: ChildProfile[] = [
     historicoSeteDias: [100, 110, 85, 380, 95, 115, 105], // Teve um dia de uso extremo (380m = 6.3h)
     usoApos22hCount: 4, // Usou telas após às 22h por 4 vezes
     excedeuDiasSeguidos: 0,
-    limiteNoturno: '22:00'
+    limiteNoturno: '22:00',
+    horarioInicioPermitido: '14:00', // Fora do horário agora (10:00 AM) para demonstração de bloqueio!
+    horarioFimPermitido: '19:00'
   },
   {
     id: 'bia-3',
@@ -100,7 +129,40 @@ const INITIAL_PROFILES: ChildProfile[] = [
     historicoSeteDias: [45, 55, 58, 40, 50, 60, 55],
     usoApos22hCount: 1,
     excedeuDiasSeguidos: 1,
-    limiteNoturno: '21:30'
+    limiteNoturno: '21:30',
+    horarioInicioPermitido: '08:00',
+    horarioFimPermitido: '21:00'
+  }
+];
+
+export const DEFAULT_QUESTS: Quest[] = [
+  {
+    id: 'stretch-1',
+    titulo: 'Espreguiçar de Gatinho 🐱',
+    descricao: 'Fique de pé, estique os braços lá no alto e respire fundo três vezes como um gatinho acordando!',
+    recompensa: 1,
+    icone: 'smile'
+  },
+  {
+    id: 'drawing-2',
+    titulo: 'Artista do Papel 🎨',
+    descricao: 'Pegue papel e giz de cera e desenhe um animal fantástico de três cabeças ou seu brinquedo preferido!',
+    recompensa: 3,
+    icone: 'palette'
+  },
+  {
+    id: 'water-3',
+    titulo: 'Poção da Hidratação 💧',
+    descricao: 'Beba um copo de água bem fresquinho e coma uma fruta saborosa para se recarregar!',
+    recompensa: 2,
+    icone: 'droplet'
+  },
+  {
+    id: 'origami-4',
+    titulo: 'Engenheiro de Avião ⛵',
+    descricao: 'Faça um avião ou barquinho de papel tradicional e aposte corrida para ver se ele consegue planar longe!',
+    recompensa: 3,
+    icone: 'compass'
   }
 ];
 
@@ -109,7 +171,19 @@ const ScreenTimeContext = createContext<ScreenTimeContextProps | undefined>(unde
 export const ScreenTimeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [perfis, setPerfis] = useState<ChildProfile[]>(() => {
     const localData = localStorage.getItem('equilibrakids_profiles');
-    return localData ? JSON.parse(localData) : INITIAL_PROFILES;
+    if (localData) {
+      try {
+        return JSON.parse(localData);
+      } catch (e) {
+        return INITIAL_PROFILES;
+      }
+    }
+    return INITIAL_PROFILES;
+  });
+
+  const [quests, setQuests] = useState<Quest[]>(() => {
+    const localData = localStorage.getItem('equilibrakids_quests');
+    return localData ? JSON.parse(localData) : DEFAULT_QUESTS;
   });
 
   const [activeProfileId, setActiveProfileId] = useState<string | null>(() => {
@@ -118,6 +192,16 @@ export const ScreenTimeProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
   const [turboMode, setTurboMode] = useState<boolean>(() => {
     return localStorage.getItem('equilibrakids_turbo') === 'true';
+  });
+
+  const [emailConfig, setEmailConfig] = useState<EmailConfig>(() => {
+    const localData = localStorage.getItem('equilibrakids_email_config');
+    return localData ? JSON.parse(localData) : {
+      email: 'pais@equilibrakids.com.br',
+      ativo: true,
+      incluirAlertas: true,
+      incluirRanking: true
+    };
   });
 
   const [alertas, setAlertas] = useState<HealthAlert[]>([]);
@@ -139,6 +223,14 @@ export const ScreenTimeProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   useEffect(() => {
     localStorage.setItem('equilibrakids_turbo', String(turboMode));
   }, [turboMode]);
+
+  useEffect(() => {
+    localStorage.setItem('equilibrakids_email_config', JSON.stringify(emailConfig));
+  }, [emailConfig]);
+
+  useEffect(() => {
+    localStorage.setItem('equilibrakids_quests', JSON.stringify(quests));
+  }, [quests]);
 
   // Gerador automático de Alertas de Saúde baseado no histórico dos perfis
   useEffect(() => {
@@ -226,16 +318,15 @@ export const ScreenTimeProvider: React.FC<{ children: React.ReactNode }> = ({ ch
                 const novoTempo = p.tempoUsadoHoje + incremento;
                 const limiteSegundos = p.limiteDiario * 60;
                 
+                let novoStatus: ChildProfile['status'] = p.status;
                 if (novoTempo >= limiteSegundos) {
-                  return {
-                    ...p,
-                    tempoUsadoHoje: limiteSegundos,
-                    status: 'bloqueado'
-                  };
+                  novoStatus = 'bloqueado';
                 }
+
                 return {
                   ...p,
-                  tempoUsadoHoje: novoTempo
+                  tempoUsadoHoje: Math.min(limiteSegundos, novoTempo),
+                  status: novoStatus
                 };
               }
               return p;
@@ -316,7 +407,13 @@ export const ScreenTimeProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     adicionarTempoRemoto(id, 15);
   };
 
-  const redefinirLimite = (id: string, novoLimite: number, limiteNoturno: string) => {
+  const redefinirLimite = (
+    id: string,
+    novoLimite: number,
+    limiteNoturno: string,
+    inicioPermitido: string,
+    fimPermitido: string
+  ) => {
     setPerfis(prev => prev.map(p => {
       if (p.id === id) {
         const limiteSegundos = novoLimite * 60;
@@ -325,6 +422,8 @@ export const ScreenTimeProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           ...p,
           limiteDiario: novoLimite,
           limiteNoturno: limiteNoturno,
+          horarioInicioPermitido: inicioPermitido,
+          horarioFimPermitido: fimPermitido,
           status: novoStatus
         };
       }
@@ -350,7 +449,9 @@ export const ScreenTimeProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     idade: number,
     limiteDiario: number,
     avatar: 'lion' | 'owl' | 'cat' | 'bear',
-    limiteNoturno: string
+    limiteNoturno: string,
+    inicioPermitido: string,
+    fimPermitido: string
   ) => {
     const novo: ChildProfile = {
       id: `child-${Date.now()}`,
@@ -366,18 +467,54 @@ export const ScreenTimeProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       historicoSeteDias: [30, 45, 40, 50, 45, 55, 30],
       usoApos22hCount: 0,
       excedeuDiasSeguidos: 0,
-      limiteNoturno
+      limiteNoturno,
+      horarioInicioPermitido: inicioPermitido,
+      horarioFimPermitido: fimPermitido
     };
     setPerfis(prev => [...prev, novo]);
+  };
+
+  const atualizarEmailConfig = (config: EmailConfig) => {
+    setEmailConfig(config);
+  };
+
+  const adicionarQuestCustomizada = (
+    titulo: string,
+    descricao: string,
+    recompensa: number,
+    icone: 'smile' | 'palette' | 'droplet' | 'compass' | 'book' | 'star' | 'run' | 'clean'
+  ) => {
+    const nova: Quest = {
+      id: `quest-${Date.now()}`,
+      titulo,
+      descricao,
+      recompensa,
+      icone,
+      custom: true
+    };
+    setQuests(prev => [...prev, nova]);
+  };
+
+  const deletarQuestCustomizada = (id: string) => {
+    setQuests(prev => prev.filter(q => q.id !== id));
   };
 
   const resetarSimulador = () => {
     setPerfis(INITIAL_PROFILES);
     setActiveProfileId(null);
     setTurboMode(false);
+    setEmailConfig({
+      email: 'pais@equilibrakids.com.br',
+      ativo: true,
+      incluirAlertas: true,
+      incluirRanking: true
+    });
+    setQuests(DEFAULT_QUESTS);
     localStorage.removeItem('equilibrakids_profiles');
     localStorage.removeItem('equilibrakids_active_id');
     localStorage.removeItem('equilibrakids_turbo');
+    localStorage.removeItem('equilibrakids_email_config');
+    localStorage.removeItem('equilibrakids_quests');
   };
 
   return (
@@ -386,6 +523,8 @@ export const ScreenTimeProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       activeProfileId,
       turboMode,
       alertas,
+      emailConfig,
+      quests,
       setActiveProfileId,
       setTurboMode,
       selecionarPerfil,
@@ -398,6 +537,9 @@ export const ScreenTimeProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       redefinirLimite,
       concluirAtividadeOffline,
       adicionarNovoPerfil,
+      atualizarEmailConfig,
+      adicionarQuestCustomizada,
+      deletarQuestCustomizada,
       resetarSimulador
     }}>
       {children}
@@ -411,4 +553,23 @@ export const useScreenTime = () => {
     throw new Error('useScreenTime deve ser usado dentro de um ScreenTimeProvider');
   }
   return context;
+};
+
+export const isInsideAllowedWindow = (profile: ChildProfile | undefined): boolean => {
+  if (!profile) return true;
+  
+  const agora = new Date();
+  const horaMinutosAgora = `${agora.getHours().toString().padStart(2, '0')}:${agora.getMinutes().toString().padStart(2, '0')}`;
+  
+  const inicio = profile.horarioInicioPermitido;
+  const fim = profile.horarioFimPermitido;
+  
+  if (!inicio || !fim) return true;
+  
+  if (inicio <= fim) {
+    return horaMinutosAgora >= inicio && horaMinutosAgora <= fim;
+  } else {
+    // Janela que cruza meia-noite (ex: das 22:00 às 06:00)
+    return horaMinutosAgora >= inicio || horaMinutosAgora <= fim;
+  }
 };

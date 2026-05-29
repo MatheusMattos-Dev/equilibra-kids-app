@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useScreenTime } from '../hooks/useScreenTime';
+import { useScreenTime, isInsideAllowedWindow } from '../hooks/useScreenTime';
 import { Avatar } from '../components/Avatar';
 import { OfflineActivities } from '../components/OfflineActivities';
 import { ParentPinModal } from '../components/ParentPinModal';
@@ -21,7 +21,7 @@ export const ChildInterface: React.FC<ChildInterfaceProps> = ({
     activeProfileId, 
     pedirMaisTempo, 
     concluirAtividadeOffline, 
-    pausarTempoRemoto 
+    pausarTempoRemoto
   } = useScreenTime();
 
   const [pinOpen, setPinOpen] = useState<boolean>(false);
@@ -72,6 +72,7 @@ export const ChildInterface: React.FC<ChildInterfaceProps> = ({
   const restanteSegundos = Math.max(0, limiteSegundos - perfil.tempoUsadoHoje);
   const progressPercent = Math.min(100, (perfil.tempoUsadoHoje / limiteSegundos) * 100);
   const isTimeOver = restanteSegundos <= 0 || perfil.status === 'bloqueado';
+  const insideAllowedWindow = isInsideAllowedWindow(perfil);
 
   // Formatar tempo de forma lúdica
   const formatTime = (totalSeconds: number) => {
@@ -85,7 +86,6 @@ export const ChildInterface: React.FC<ChildInterfaceProps> = ({
   };
 
   const handlePinSuccess = () => {
-    // Ao sair do modo criança, pausa o timer por segurança
     pausarTempoRemoto(perfil.id);
     onNavigate('parent-dashboard');
   };
@@ -151,10 +151,13 @@ export const ChildInterface: React.FC<ChildInterfaceProps> = ({
 
       {/* Main Content Area */}
       <div className="my-auto py-6 flex flex-col items-center justify-center">
-        
         {/* BANNER NOTIFICAÇÃO 15 MINUTOS */}
         {warn15Open && (
-          <div className={`w-full bg-pastel-yellow-50 border-4 border-pastel-yellow-200 rounded-[28px] sm:rounded-[32px] text-center shadow-lg animate-bounce relative z-20 ${isCompact ? 'p-4 mb-4' : 'p-5 mb-6'}`}>
+          <div
+            role="alert"
+            aria-live="assertive"
+            className={`w-full bg-pastel-yellow-50 border-4 border-pastel-yellow-200 rounded-[28px] sm:rounded-[32px] text-center shadow-lg animate-bounce relative z-20 ${isCompact ? 'p-4 mb-4' : 'p-5 mb-6'}`}
+          >
             <h3 className="text-pastel-yellow-600 font-black text-base sm:text-lg flex items-center justify-center gap-1.5">
               <Sparkles size={16} className="animate-wiggle" />
               Alerta de Aventura!
@@ -174,7 +177,11 @@ export const ChildInterface: React.FC<ChildInterfaceProps> = ({
 
         {/* BANNER NOTIFICAÇÃO 5 MINUTOS */}
         {warn5Open && (
-          <div className={`w-full bg-pastel-pink-50 border-4 border-pastel-pink-200 rounded-[28px] sm:rounded-[32px] text-center shadow-lg animate-bounce relative z-20 ${isCompact ? 'p-4 mb-4' : 'p-5 mb-6'}`}>
+          <div
+            role="alert"
+            aria-live="assertive"
+            className={`w-full bg-pastel-pink-50 border-4 border-pastel-pink-200 rounded-[28px] sm:rounded-[32px] text-center shadow-lg animate-bounce relative z-20 ${isCompact ? 'p-4 mb-4' : 'p-5 mb-6'}`}
+          >
             <h3 className="text-pastel-pink-500 font-black text-base sm:text-lg flex items-center justify-center gap-1.5">
               <AlertTriangle size={16} className="animate-pulse" />
               Hora do Espreguiço!
@@ -192,58 +199,105 @@ export const ChildInterface: React.FC<ChildInterfaceProps> = ({
           </div>
         )}
 
-        {!isTimeOver ? (
-          /* TIMER DA CRIANÇA */
-          <div className="flex flex-col items-center">
-            {/* Círculo Progressivo Radial */}
-            <div className={`relative flex items-center justify-center ${isCompact ? 'w-48 h-48' : 'w-64 h-64 md:w-72 md:h-72'}`}>
-              <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
-                {/* Trilho de fundo */}
-                <circle
-                  cx="50"
-                  cy="50"
-                  r="42"
-                  className={`${theme.track} fill-white/80`}
-                  strokeWidth="8"
-                />
-                {/* Linha de progresso */}
-                <circle
-                  cx="50"
-                  cy="50"
-                  r="42"
-                  className={`${theme.stroke} transition-all duration-1000`}
-                  strokeWidth="8"
-                  fill="transparent"
-                  strokeDasharray="263.89"
-                  strokeDashoffset={263.89 - (263.89 * (100 - progressPercent)) / 100}
-                  strokeLinecap="round"
-                />
-              </svg>
+        {!insideAllowedWindow ? (
+          /* TELA DE BLOQUEIO POR JANELA DE HORÁRIO AMIGÁVEL */
+          <div className="w-full bg-white/95 border-4 border-pastel-blue-200 p-4 sm:p-5 rounded-[32px] sm:rounded-[40px] text-center shadow-xl animate-pop relative overflow-hidden flex flex-col items-center">
+            
+            {/* Background elements */}
+            <div className="absolute -top-12 -left-12 w-24 h-24 bg-pastel-blue-100 rounded-full opacity-35" />
+            <div className="absolute -bottom-12 -right-12 w-32 h-32 bg-pastel-yellow-100 rounded-full opacity-35" />
 
-              {/* Conteúdo Central */}
-              <div className="absolute flex flex-col items-center justify-center text-center">
-                <Avatar type={perfil.avatar} className={`mb-1 animate-float ${isCompact ? 'w-16 h-16' : 'w-24 h-24'}`} />
-                <span className="text-slate-400 font-bold text-[9px] sm:text-[10px] uppercase font-parents tracking-wider">Tempo Restante</span>
-                <span className={`font-black ${theme.text} leading-none tabular-nums ${isCompact ? 'text-3xl' : 'text-4xl md:text-5xl'}`}>
-                  {formatTime(restanteSegundos)}
-                </span>
-                <span className="text-[9px] sm:text-[10px] text-slate-400 font-parents font-semibold mt-0.5">Limite: {perfil.limiteDiario}m</span>
-              </div>
+            <div className="inline-flex p-3 bg-pastel-blue-50 text-pastel-blue-500 rounded-2xl mb-3 border-2 border-pastel-blue-100 shrink-0">
+              <Clock size={28} className="animate-pulse" />
             </div>
 
-            {/* Mensagem Acolhedora */}
-            <div className={`px-5 py-3 rounded-2xl sm:rounded-3xl border-2 text-center max-w-sm ${theme.bg} shadow-sm ${isCompact ? 'mt-4' : 'mt-8'}`}>
-              <p className="text-slate-700 text-[11px] sm:text-xs font-bold leading-relaxed">
-                {theme.message}
-              </p>
-              
-              {perfil.status === 'pausado' && (
-                <div className="mt-2 inline-flex items-center gap-1 bg-pastel-yellow-100 text-pastel-yellow-700 text-[9px] sm:text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full border border-pastel-yellow-200">
-                  <Clock size={10} /> Pausado pelos Pais
-                </div>
-              )}
+            <h3 className="text-pastel-blue-600 font-black text-lg sm:text-xl md:text-2xl leading-none">
+              Ainda não está na hora! ⏰
+            </h3>
+            
+            <p className="text-[11px] sm:text-xs md:text-sm text-slate-600 font-semibold font-parents max-w-md mx-auto mt-2 leading-relaxed">
+              Oi <strong>{perfil.nome}</strong>! Seus pais combinaram que o horário de usar o tablet é das <strong className="text-pastel-blue-600 font-black">{perfil.horarioInicioPermitido}</strong> às <strong className="text-pastel-blue-600 font-black">{perfil.horarioFimPermitido}</strong>.<br/>Que tal se espreguiçar ou fazer uma missão offline para ganhar estrelas? 🌟
+            </p>
+
+            {/* Quests Físicas Reais */}
+            <div className="my-4 w-full bg-slate-50/50 p-3 sm:p-4 rounded-2xl sm:rounded-3xl border-2 border-slate-100">
+              <OfflineActivities 
+                isCompact={isCompact}
+                onCompleteActivity={(estrelas) => concluirAtividadeOffline(perfil.id, estrelas)} 
+              />
             </div>
           </div>
+        ) : !isTimeOver ? (
+            /* TIMER DA CRIANÇA */
+            <div className="flex flex-col items-center">
+              {/* Círculo Progressivo Radial */}
+              <div
+                role="timer"
+                aria-live="polite"
+                aria-label={`${Math.floor(restanteSegundos / 60)} minutos e ${restanteSegundos % 60} segundos restantes`}
+                className={`relative flex items-center justify-center ${isCompact ? 'w-40 h-40' : 'w-56 h-56 md:w-60 md:h-60'}`}
+              >
+                <svg aria-hidden="true" className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+                  {/* Trilho de fundo */}
+                  <circle
+                    cx="50"
+                    cy="50"
+                    r="42"
+                    className={`${theme.track} fill-white/80`}
+                    strokeWidth="8"
+                  />
+                  {/* Linha de progresso */}
+                  <circle
+                    cx="50"
+                    cy="50"
+                    r="42"
+                    className={`${theme.stroke} transition-all duration-1000`}
+                    strokeWidth="8"
+                    fill="transparent"
+                    strokeDasharray="263.89"
+                    strokeDashoffset={263.89 - (263.89 * (100 - progressPercent)) / 100}
+                    strokeLinecap="round"
+                  />
+                </svg>
+
+                {/* Conteúdo Central */}
+                <div className="absolute flex flex-col items-center justify-center text-center">
+                  <Avatar type={perfil.avatar} className={`mb-0.5 animate-float ${isCompact ? 'w-12 h-12' : 'w-16 h-16'}`} />
+                  <span className="text-slate-400 font-bold text-[8px] sm:text-[9px] uppercase font-parents tracking-wider">Tempo Restante</span>
+                  <span className={`font-black ${theme.text} leading-none tabular-nums ${isCompact ? 'text-2xl' : 'text-3xl'}`}>
+                    {formatTime(restanteSegundos)}
+                  </span>
+                  <span className="text-[8px] sm:text-[9px] text-slate-400 font-parents font-semibold mt-0.5">Limite: {perfil.limiteDiario}m</span>
+                </div>
+              </div>
+
+              {/* Mensagem Acolhedora */}
+              <div className={`px-4 py-2 rounded-2xl border text-center max-w-sm ${theme.bg} shadow-xs ${isCompact ? 'mt-2' : 'mt-4'}`}>
+                <p className="text-slate-700 text-[10px] sm:text-xs font-bold leading-normal">
+                  {theme.message}
+                </p>
+                
+                {perfil.status === 'pausado' && (
+                  <div className="mt-1 inline-flex items-center gap-1 bg-pastel-yellow-100 text-pastel-yellow-700 text-[9px] font-black uppercase px-2 py-0.5 rounded-full border border-pastel-yellow-200">
+                    <Clock size={10} /> Pausado pelos Pais
+                  </div>
+                )}
+              </div>
+
+              {/* Quests Físicas Reais Integradas na Home quando tem tempo */}
+              <div className={`w-full bg-white/70 border-2 border-slate-100 rounded-3xl p-3.5 shadow-2xs ${isCompact ? 'mt-4 max-w-sm' : 'mt-6 max-w-lg'} flex flex-col gap-2.5 font-parents`}>
+                <div className="flex items-center justify-between border-b border-slate-100 pb-1.5">
+                  <span className="text-[10px] font-black text-slate-700 uppercase tracking-wider flex items-center gap-1">
+                    <Sparkles size={12} className="text-pastel-purple-500" />
+                    Missões Offline da Casa 🏡
+                  </span>
+                </div>
+                <OfflineActivities 
+                  isCompact={isCompact}
+                  onCompleteActivity={(estrelas) => concluirAtividadeOffline(perfil.id, estrelas)} 
+                />
+              </div>
+            </div>
         ) : (
           /* TELA DE BLOQUEIO AMIGÁVEL ("ESTAÇÃO DE DESCANSO") */
           <div className="w-full bg-white/90 border-4 border-pastel-purple-200 p-4 sm:p-6 rounded-[32px] sm:rounded-[40px] text-center shadow-xl animate-pop relative overflow-hidden">

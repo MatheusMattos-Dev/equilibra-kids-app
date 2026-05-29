@@ -6,15 +6,24 @@ interface AvatarProps {
   type: AvatarType;
   className?: string;
   animate?: boolean;
+  ariaLabel?: string;
 }
 
-export const Avatar: React.FC<AvatarProps> = ({ type, className = 'w-16 h-16', animate = false }) => {
+export const Avatar: React.FC<AvatarProps> = ({ type, className = 'w-16 h-16', animate = false, ariaLabel }) => {
   const animationClass = animate ? 'animate-float' : 'hover:scale-105 transition-transform duration-300';
   
   switch (type) {
     case 'lion':
       return (
-        <svg className={`${className} ${animationClass}`} viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <svg
+          className={`${className} ${animationClass}`}
+          viewBox="0 0 100 100"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+          role={ariaLabel ? "img" : undefined}
+          aria-label={ariaLabel}
+          aria-hidden={ariaLabel ? undefined : "true"}
+        >
           {/* Mane (Juba) */}
           <circle cx="50" cy="50" r="40" fill="#E28743" />
           <path d="M50 10 L60 20 L50 30 L40 20 Z" fill="#C35A1E" />
@@ -51,7 +60,15 @@ export const Avatar: React.FC<AvatarProps> = ({ type, className = 'w-16 h-16', a
       
     case 'owl':
       return (
-        <svg className={`${className} ${animationClass}`} viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <svg
+          className={`${className} ${animationClass}`}
+          viewBox="0 0 100 100"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+          role={ariaLabel ? "img" : undefined}
+          aria-label={ariaLabel}
+          aria-hidden={ariaLabel ? undefined : "true"}
+        >
           {/* Body */}
           <rect x="22" y="24" width="56" height="58" rx="28" fill="#9E74D6" />
           
@@ -88,7 +105,15 @@ export const Avatar: React.FC<AvatarProps> = ({ type, className = 'w-16 h-16', a
       
     case 'cat':
       return (
-        <svg className={`${className} ${animationClass}`} viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <svg
+          className={`${className} ${animationClass}`}
+          viewBox="0 0 100 100"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+          role={ariaLabel ? "img" : undefined}
+          aria-label={ariaLabel}
+          aria-hidden={ariaLabel ? undefined : "true"}
+        >
           {/* Face */}
           <circle cx="50" cy="52" r="32" fill="#F67280" />
           
@@ -122,7 +147,15 @@ export const Avatar: React.FC<AvatarProps> = ({ type, className = 'w-16 h-16', a
     case 'bear':
     default:
       return (
-        <svg className={`${className} ${animationClass}`} viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <svg
+          className={`${className} ${animationClass}`}
+          viewBox="0 0 100 100"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+          role={ariaLabel ? "img" : undefined}
+          aria-label={ariaLabel}
+          aria-hidden={ariaLabel ? undefined : "true"}
+        >
           {/* Ears */}
           <circle cx="26" cy="30" r="11" fill="#46B3CC" />
           <circle cx="26" cy="30" r="6" fill="#C0E5EE" />

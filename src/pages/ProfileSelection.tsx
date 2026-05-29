@@ -61,6 +61,7 @@ export const ProfileSelection: React.FC<ProfileSelectionProps> = ({ onNavigate }
           {/* Botão de Ranking de Missões */}
           <button
             onClick={() => setRankingOpen(true)}
+            aria-haspopup="dialog"
             className="flex items-center gap-1.5 px-3 py-2 bg-gradient-to-r from-pastel-yellow-400 to-pastel-yellow-500 hover:from-pastel-yellow-500 hover:to-pastel-yellow-600 text-white font-black text-xs rounded-2xl transition-all shadow-sm active:scale-95 font-parents"
             title="Ver Ranking de Missões Saudáveis"
           >
@@ -110,6 +111,7 @@ export const ProfileSelection: React.FC<ProfileSelectionProps> = ({ onNavigate }
               <button
                 key={perfil.id}
                 onClick={() => handleSelectProfile(perfil.id)}
+                aria-label={`Selecionar perfil de ${perfil.nome}. ${perfil.status === 'bloqueado' ? 'Tempo de tela esgotado' : `${restanteMinutos} minutos restantes`}`}
                 className={`p-6 bg-gradient-to-b ${conf} rounded-[36px] border-2 shadow-sm hover:shadow-xl hover:-translate-y-1.5 transition-all active:scale-95 group flex flex-col items-center`}
               >
                 <div className="relative mb-3">
@@ -167,11 +169,17 @@ export const ProfileSelection: React.FC<ProfileSelectionProps> = ({ onNavigate }
       {/* Modal de Ranking de Missões */}
       {rankingOpen && (
         <div className="fixed inset-0 z-40 bg-soft-dark-900/40 backdrop-blur-sm flex items-center justify-center p-4 font-kids">
-          <div className="w-full max-w-md bg-white p-6 rounded-[32px] border-4 border-pastel-yellow-200 shadow-2xl animate-pop relative flex flex-col gap-4">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="ranking-dialog-title"
+            className="w-full max-w-md bg-white p-6 rounded-[32px] border-4 border-pastel-yellow-200 shadow-2xl animate-pop relative flex flex-col gap-4"
+          >
             
             {/* Botão Fechar */}
             <button
               onClick={() => setRankingOpen(false)}
+              aria-label="Fechar ranking"
               className="absolute top-4 right-4 p-2 bg-slate-100 hover:bg-slate-200 text-slate-500 rounded-full transition-colors active:scale-95"
             >
               <X size={16} />
@@ -182,7 +190,7 @@ export const ProfileSelection: React.FC<ProfileSelectionProps> = ({ onNavigate }
               <div className="inline-flex p-3 bg-pastel-yellow-100 rounded-2xl text-pastel-yellow-500 mb-2 animate-float">
                 <Trophy size={32} className="fill-pastel-yellow-200" />
               </div>
-              <h3 className="text-xl font-black text-slate-800">Super Campeões de Missões! 🏆</h3>
+              <h3 id="ranking-dialog-title" className="text-xl font-black text-slate-800">Super Campeões de Missões! 🏆</h3>
               <p className="text-xs text-slate-400 mt-1 font-parents font-semibold">
                 Quem completou mais missões offline e conquistou estrelas saudáveis?
               </p>

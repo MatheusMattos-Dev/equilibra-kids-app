@@ -6,7 +6,8 @@ import {
   Users, Activity, Bell, Settings, ArrowLeft, Play, Pause, 
   Square, ShieldAlert, Plus, Save, Clock, 
   TrendingUp, Sparkles, Check, Smartphone, ToggleLeft, ToggleRight,
-  Trophy, Medal, Crown
+  Trophy, Medal, Crown, Mail,
+  Palette, Compass, Droplet, BookOpen, Star, Trash, Smile
 } from 'lucide-react';
 import { ChildInterface } from './ChildInterface';
 
@@ -29,20 +30,43 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({ onNavigate }) 
     adicionarNovoPerfil,
     setTurboMode,
     selecionarPerfil,
-    setActiveProfileId
+    setActiveProfileId,
+    emailConfig,
+    atualizarEmailConfig,
+    quests,
+    adicionarQuestCustomizada,
+    deletarQuestCustomizada
   } = useScreenTime();
 
   // Estados locais da página
-  const [activeTab, setActiveTab] = useState<'monitor' | 'alerts' | 'settings' | 'ranking'>('monitor');
+  const [activeTab, setActiveTab] = useState<'monitor' | 'alerts' | 'settings' | 'ranking' | 'digest'>('monitor');
   const [selectedChildId, setSelectedChildId] = useState<string>(perfis[0]?.id || '');
   const [splitView, setSplitView] = useState<boolean>(true); // Split view ativa por padrão para demonstração incrível!
   const [historyFilterId, setHistoryFilterId] = useState<string>('all');
   const [hoveredBarInfo, setHoveredBarInfo] = useState<{ childId: string; dayIdx: number; val: number } | null>(null);
   
+  // Estados para configuração do E-mail
+  const [emailInput, setEmailInput] = useState<string>(emailConfig.email);
+  const [emailAtivo, setEmailAtivo] = useState<boolean>(emailConfig.ativo);
+  const [emailAlertas, setEmailAlertas] = useState<boolean>(emailConfig.incluirAlertas);
+  const [emailRanking, setEmailRanking] = useState<boolean>(emailConfig.incluirRanking);
+  const [isSimulatingEmail, setIsSimulatingEmail] = useState<boolean>(false);
+  const [emailSentToast, setEmailSentToast] = useState<boolean>(false);
+
+  // Sincronizar estados locais do e-mail com o contexto
+  React.useEffect(() => {
+    setEmailInput(emailConfig.email);
+    setEmailAtivo(emailConfig.ativo);
+    setEmailAlertas(emailConfig.incluirAlertas);
+    setEmailRanking(emailConfig.incluirRanking);
+  }, [emailConfig]);
+
   // Estado para edição de limites
   const selectedProfile = perfis.find(p => p.id === selectedChildId);
   const [editLimit, setEditLimit] = useState<number>(selectedProfile?.limiteDiario || 60);
   const [editBedtime, setEditBedtime] = useState<string>(selectedProfile?.limiteNoturno || '21:30');
+  const [editStartTime, setEditStartTime] = useState<string>(selectedProfile?.horarioInicioPermitido || '08:00');
+  const [editEndTime, setEditEndTime] = useState<string>(selectedProfile?.horarioFimPermitido || '20:00');
 
   // Estado para cadastro de novo perfil
   const [newName, setNewName] = useState<string>('');
@@ -50,20 +74,42 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({ onNavigate }) 
   const [newLimit, setNewLimit] = useState<number>(60);
   const [newAvatar, setNewAvatar] = useState<'lion' | 'owl' | 'cat' | 'bear'>('bear');
   const [newBedtime, setNewBedtime] = useState<string>('21:30');
+  const [newStartTime, setNewStartTime] = useState<string>('08:00');
+  const [newEndTime, setNewEndTime] = useState<string>('20:00');
   const [showNewForm, setShowNewForm] = useState<boolean>(false);
+
+  // Estados para cadastro de nova missão customizada
+  const [questTitle, setQuestTitle] = useState<string>('');
+  const [questDescription, setQuestDescription] = useState<string>('');
+  const [questStars, setQuestStars] = useState<number>(2);
+  const [questIcon, setQuestIcon] = useState<'smile' | 'palette' | 'droplet' | 'compass' | 'book' | 'star' | 'run' | 'clean'>('star');
+
+  const handleCreateQuest = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (questTitle.trim() && questDescription.trim()) {
+      adicionarQuestCustomizada(questTitle, questDescription, questStars, questIcon);
+      setQuestTitle('');
+      setQuestDescription('');
+      setQuestStars(2);
+      setQuestIcon('star');
+      alert('Missão customizada criada com sucesso! Ela já está ativa para todas as crianças na Estação de Descanso.');
+    }
+  };
 
   // Sincronizar campos de edição ao mudar criança selecionada nas configurações
   React.useEffect(() => {
     if (selectedProfile) {
       setEditLimit(selectedProfile.limiteDiario);
       setEditBedtime(selectedProfile.limiteNoturno);
+      setEditStartTime(selectedProfile.horarioInicioPermitido);
+      setEditEndTime(selectedProfile.horarioFimPermitido);
     }
   }, [selectedChildId, perfis]);
 
   const handleSaveLimits = (e: React.FormEvent) => {
     e.preventDefault();
     if (selectedChildId) {
-      redefinirLimite(selectedChildId, editLimit, editBedtime);
+      redefinirLimite(selectedChildId, editLimit, editBedtime, editStartTime, editEndTime);
       alert('Configurações atualizadas com sucesso! Os limites foram aplicados remotamente.');
     }
   };
@@ -71,17 +117,55 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({ onNavigate }) 
   const handleCreateProfile = (e: React.FormEvent) => {
     e.preventDefault();
     if (newName.trim()) {
-      adicionarNovoPerfil(newName, newAge, newLimit, newAvatar, newBedtime);
+      adicionarNovoPerfil(newName, newAge, newLimit, newAvatar, newBedtime, newStartTime, newEndTime);
       setNewName('');
       setShowNewForm(false);
       alert(`Perfil do(a) ${newName} criado com sucesso!`);
     }
   };
 
+  const handleSaveEmailConfig = (e: React.FormEvent) => {
+    e.preventDefault();
+    atualizarEmailConfig({
+      email: emailInput,
+      ativo: emailAtivo,
+      incluirAlertas: emailAlertas,
+      incluirRanking: emailRanking
+    });
+    alert('Preferências de e-mail salvas com sucesso! O relatório semanal será consolidado para ' + emailInput);
+  };
+
+  const handleSimulateEmail = () => {
+    setIsSimulatingEmail(true);
+    setTimeout(() => {
+      setIsSimulatingEmail(false);
+      setEmailSentToast(true);
+      setTimeout(() => setEmailSentToast(false), 4000);
+    }, 1500);
+  };
+
   // Cálculo das estatísticas gerais dos pais
   const totalKids = perfis.length;
   const activeKids = perfis.filter(p => p.status === 'online').length;
   const totalAlerts = alertas.length;
+
+  const getChartAriaLabel = () => {
+    if (historyFilterId === 'all') {
+      return `Gráfico de uso semanal dos filhos. ${perfis.map(kid => {
+        const diasStr = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo']
+          .map((d, i) => `${d}: ${kid.historicoSeteDias[i] || 0} minutos`)
+          .join(', ');
+        return `Histórico do(a) ${kid.nome}: ${diasStr}.`;
+      }).join(' ')}`;
+    } else {
+      const kid = perfis.find(p => p.id === historyFilterId);
+      if (!kid) return "Gráfico de uso semanal";
+      const diasStr = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo']
+        .map((d, i) => `${d}: ${kid.historicoSeteDias[i] || 0} minutos`)
+        .join(', ');
+      return `Gráfico de uso semanal do(a) ${kid.nome}: ${diasStr}.`;
+    }
+  };
 
   return (
     <div className="min-h-screen bg-slate-50 font-parents dark-mode-transition">
@@ -109,8 +193,16 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({ onNavigate }) 
         </div>
 
         {/* Abas Principais */}
-        <nav className="flex bg-slate-100 p-1 rounded-xl border border-slate-200/50">
+        <nav 
+          role="tablist" 
+          aria-label="Abas do painel dos pais"
+          className="flex bg-slate-100 p-1 rounded-xl border border-slate-200/50"
+        >
           <button
+            id="tab-monitor"
+            role="tab"
+            aria-selected={activeTab === 'monitor'}
+            aria-controls="panel-monitor"
             onClick={() => setActiveTab('monitor')}
             className={`flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-lg transition-all ${
               activeTab === 'monitor' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-800'
@@ -120,6 +212,10 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({ onNavigate }) 
             Monitoramento
           </button>
           <button
+            id="tab-alerts"
+            role="tab"
+            aria-selected={activeTab === 'alerts'}
+            aria-controls="panel-alerts"
             onClick={() => setActiveTab('alerts')}
             className={`flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-lg transition-all relative ${
               activeTab === 'alerts' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-800'
@@ -134,6 +230,10 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({ onNavigate }) 
             )}
           </button>
           <button
+            id="tab-settings"
+            role="tab"
+            aria-selected={activeTab === 'settings'}
+            aria-controls="panel-settings"
             onClick={() => setActiveTab('settings')}
             className={`flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-lg transition-all ${
               activeTab === 'settings' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-800'
@@ -143,6 +243,10 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({ onNavigate }) 
             Ajustar Limites
           </button>
           <button
+            id="tab-ranking"
+            role="tab"
+            aria-selected={activeTab === 'ranking'}
+            aria-controls="panel-ranking"
             onClick={() => setActiveTab('ranking')}
             className={`flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-lg transition-all ${
               activeTab === 'ranking' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-800'
@@ -150,6 +254,19 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({ onNavigate }) 
           >
             <Trophy size={14} className="text-pastel-yellow-500 fill-pastel-yellow-200" />
             Ranking de Missões
+          </button>
+          <button
+            id="tab-digest"
+            role="tab"
+            aria-selected={activeTab === 'digest'}
+            aria-controls="panel-digest"
+            onClick={() => setActiveTab('digest')}
+            className={`flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-lg transition-all ${
+              activeTab === 'digest' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            <Mail size={14} className="text-pastel-blue-500" />
+            Relatório por E-mail
           </button>
         </nav>
 
@@ -208,7 +325,13 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({ onNavigate }) 
 
           {/* TAB 1: MONITORAMENTO EM TEMPO REAL */}
           {activeTab === 'monitor' && (
-            <div className="flex flex-col gap-6">
+            <div 
+              role="tabpanel" 
+              id="panel-monitor" 
+              aria-labelledby="tab-monitor" 
+              tabIndex={0} 
+              className="flex flex-col gap-6 focus-visible:outline-none"
+            >
               
               {/* Painel Modo Turbo / Simulador Acelerado */}
               <div className="bg-gradient-to-r from-pastel-purple-50/50 to-pastel-blue-50/50 border border-pastel-purple-100 p-4.5 rounded-2xl flex items-center justify-between gap-4">
@@ -292,14 +415,20 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({ onNavigate }) 
                                    kid.status === 'pausado' ? 'Pausado' : 'Esgotado 💤'}
                                 </span>
                               </div>
-                              <span className="text-[10px] text-slate-400 font-semibold font-parents">Idade: {kid.idade} anos • Dormir às {kid.limiteNoturno}</span>
+                              <div className="text-[10px] text-slate-400 font-semibold font-parents mt-1 flex flex-col gap-0.5">
+                                <span>Idade: {kid.idade} anos • Dormir às {kid.limiteNoturno}</span>
+                                <span className="text-pastel-blue-600 font-black text-[9px] uppercase tracking-wider mt-0.5">
+                                  Janela: {kid.horarioInicioPermitido} às {kid.horarioFimPermitido}
+                                </span>
+
+                              </div>
                             </div>
                           </div>
 
                           {/* Barra de Progresso do Tempo */}
                           <div className="flex-1 w-full max-w-xs sm:mx-4">
                             <div className="flex items-center justify-between text-xs text-slate-500 mb-1.5 font-bold">
-                              <span className="font-medium font-parents">Progresso Diário</span>
+                              <span className="font-medium font-parents">Progresso Geral</span>
                               <span>{usadoMinutos}m / {kid.limiteDiario}m</span>
                             </div>
                             <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden border border-slate-200/50">
@@ -324,6 +453,7 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({ onNavigate }) 
                               disabled={kid.status === 'bloqueado'}
                               className="flex items-center gap-1.5 px-3 py-2 bg-pastel-green-500 hover:bg-pastel-green-600 text-white font-extrabold text-xs rounded-xl shadow-sm hover:shadow active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed transition-all mr-1"
                               title="Iniciar Sessão Segura e Entregar Celular para a Criança"
+                              aria-label={`Entregar celular e iniciar sessão segura de ${kid.nome}`}
                             >
                               <Play size={12} fill="currentColor" />
                               Entregar 📱
@@ -334,6 +464,7 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({ onNavigate }) 
                                 onClick={() => pausarTempoRemoto(kid.id)}
                                 className="p-2.5 bg-pastel-yellow-50 hover:bg-pastel-yellow-100 text-pastel-yellow-600 rounded-xl border border-pastel-yellow-200 transition-colors"
                                 title="Pausar Sessão Temporariamente"
+                                aria-label={`Pausar tempo limite de ${kid.nome}`}
                               >
                                 <Pause size={15} />
                               </button>
@@ -343,6 +474,7 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({ onNavigate }) 
                                 disabled={kid.status === 'bloqueado'}
                                 className="p-2.5 bg-pastel-green-50 hover:bg-pastel-green-100 text-pastel-green-600 disabled:opacity-30 disabled:cursor-not-allowed rounded-xl border border-pastel-green-200 transition-colors"
                                 title="Retomar Sessão da Criança"
+                                aria-label={`Retomar tempo limite de ${kid.nome}`}
                               >
                                 <Play size={15} />
                               </button>
@@ -353,6 +485,7 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({ onNavigate }) 
                               disabled={kid.status === 'bloqueado'}
                               className="p-2.5 bg-pastel-pink-50 hover:bg-pastel-pink-100 text-pastel-pink-500 disabled:opacity-30 disabled:cursor-not-allowed rounded-xl border border-pastel-pink-200 transition-colors"
                               title="Bloquear Dispositivo Imediatamente"
+                              aria-label={`Bloquear uso de telas de ${kid.nome} imediatamente`}
                             >
                               <Square size={14} fill="currentColor" />
                             </button>
@@ -361,6 +494,7 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({ onNavigate }) 
                               onClick={() => adicionarTempoRemoto(kid.id, 15)}
                               className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-xs rounded-xl border border-slate-200 active:scale-95 transition-all"
                               title="Presentear Criança com +15 Minutos"
+                              aria-label={`Adicionar mais 15 minutos de bônus para ${kid.nome}`}
                             >
                               +15 min
                             </button>
@@ -381,6 +515,7 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({ onNavigate }) 
                               onClick={() => aprovarMaisTempo(kid.id)}
                               className="w-full sm:w-auto px-4 py-2 bg-pastel-purple-500 hover:bg-pastel-purple-600 text-white font-black text-xs rounded-xl shadow-md border-b-4 border-pastel-purple-700 active:scale-95 transition-all shrink-0"
                               title="Aprovar tempo extra solicitado"
+                              aria-label={`Aprovar mais 15 minutos adicionais solicitados por ${kid.nome}`}
                             >
                               Aprovar +15 min! 👍
                             </button>
@@ -565,8 +700,15 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({ onNavigate }) 
                   </div>
 
                   {/* SVG do Gráfico Responsivo */}
-                  <svg className="w-full h-44" viewBox="0 0 600 180" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    {/* Definições de Gradientes */}
+                  <svg 
+                    role="img" 
+                    aria-label={getChartAriaLabel()} 
+                    className="w-full h-44" 
+                    viewBox="0 0 600 180" 
+                    fill="none" 
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    {/* Definições de Gradientes e Texturas */}
                     <defs>
                       <linearGradient id="grad-blue" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="0%" stopColor="#46b3cc" />
@@ -584,6 +726,21 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({ onNavigate }) 
                         <stop offset="0%" stopColor="#f1c43f" />
                         <stop offset="100%" stopColor="#d4a727" />
                       </linearGradient>
+
+                      {/* Texturas acessíveis para não depender apenas de cores */}
+                      <pattern id="pattern-dots" width="4" height="4" patternUnits="userSpaceOnUse">
+                        <circle cx="2" cy="2" r="1" fill="#ffffff" opacity="0.45" />
+                      </pattern>
+                      <pattern id="pattern-lines-1" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+                        <line x1="0" y1="0" x2="0" y2="6" stroke="#ffffff" strokeWidth="1.5" opacity="0.45" />
+                      </pattern>
+                      <pattern id="pattern-lines-2" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(-45)">
+                        <line x1="0" y1="0" x2="0" y2="6" stroke="#ffffff" strokeWidth="1.5" opacity="0.45" />
+                      </pattern>
+                      <pattern id="pattern-crosshatch" width="6" height="6" patternUnits="userSpaceOnUse">
+                        <line x1="0" y1="0" x2="6" y2="0" stroke="#ffffff" strokeWidth="1" opacity="0.35" />
+                        <line x1="0" y1="0" x2="0" y2="6" stroke="#ffffff" strokeWidth="1" opacity="0.35" />
+                      </pattern>
                     </defs>
 
                     {/* Linhas de grade horizontais */}
@@ -639,6 +796,14 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({ onNavigate }) 
                               };
                               const fillColor = colors[kid.avatar] || 'url(#grad-blue)';
 
+                              const patterns = {
+                                lion: 'url(#pattern-lines-1)',
+                                cat: 'url(#pattern-lines-2)',
+                                owl: 'url(#pattern-dots)',
+                                bear: 'url(#pattern-crosshatch)'
+                              };
+                              const patternFill = patterns[kid.avatar] || 'none';
+
                               // Destaques dinâmicos interativos
                               const isHovered = hoveredBarInfo && hoveredBarInfo.childId === kid.id && hoveredBarInfo.dayIdx === idx;
                               const isAnyHovered = hoveredBarInfo !== null;
@@ -647,25 +812,42 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({ onNavigate }) 
                               const barFilter = isHovered ? 'brightness(1.15) drop-shadow(0px 3px 5px rgba(0,0,0,0.22))' : 'none';
 
                               return (
-                                <rect
-                                  key={kid.id}
-                                  x={x}
-                                  y={y}
-                                  width={width}
-                                  height={Math.max(2, height)}
-                                  rx="3"
-                                  fill={fillColor}
-                                  style={{
-                                    opacity: barOpacity,
-                                    transform: barScale,
-                                    transformOrigin: `${x + width / 2}px ${y + height}px`,
-                                    filter: barFilter,
-                                    transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)'
-                                  }}
-                                  className="cursor-pointer"
-                                  onMouseEnter={() => setHoveredBarInfo({ childId: kid.id, dayIdx: idx, val })}
-                                  onMouseLeave={() => setHoveredBarInfo(null)}
-                                />
+                                <g key={kid.id}>
+                                  <rect
+                                    x={x}
+                                    y={y}
+                                    width={width}
+                                    height={Math.max(2, height)}
+                                    rx="3"
+                                    fill={fillColor}
+                                    style={{
+                                      opacity: barOpacity,
+                                      transform: barScale,
+                                      transformOrigin: `${x + width / 2}px ${y + height}px`,
+                                      filter: barFilter,
+                                      transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)'
+                                    }}
+                                    className="cursor-pointer"
+                                    onMouseEnter={() => setHoveredBarInfo({ childId: kid.id, dayIdx: idx, val })}
+                                    onMouseLeave={() => setHoveredBarInfo(null)}
+                                  />
+                                  <rect
+                                    x={x}
+                                    y={y}
+                                    width={width}
+                                    height={Math.max(2, height)}
+                                    rx="3"
+                                    fill={patternFill}
+                                    style={{
+                                      opacity: barOpacity,
+                                      transform: barScale,
+                                      transformOrigin: `${x + width / 2}px ${y + height}px`,
+                                      filter: barFilter,
+                                      pointerEvents: 'none',
+                                      transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)'
+                                    }}
+                                  />
+                                </g>
                               );
                             })}
                             
@@ -691,6 +873,14 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({ onNavigate }) 
                           bear: 'url(#grad-yellow)'
                         };
                         const fillColor = colors[kid.avatar] || 'url(#grad-blue)';
+
+                        const patterns = {
+                          lion: 'url(#pattern-lines-1)',
+                          cat: 'url(#pattern-lines-2)',
+                          owl: 'url(#pattern-dots)',
+                          bear: 'url(#pattern-crosshatch)'
+                        };
+                        const patternFill = patterns[kid.avatar] || 'none';
 
                         // Destaques dinâmicos interativos
                         const isHovered = hoveredBarInfo && hoveredBarInfo.childId === kid.id && hoveredBarInfo.dayIdx === idx;
@@ -719,6 +909,22 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({ onNavigate }) 
                               onMouseEnter={() => setHoveredBarInfo({ childId: kid.id, dayIdx: idx, val })}
                               onMouseLeave={() => setHoveredBarInfo(null)}
                             />
+                            <rect
+                              x={x}
+                              y={y}
+                              width={width}
+                              height={Math.max(2, height)}
+                              rx="6"
+                              fill={patternFill}
+                              style={{
+                                opacity: barOpacity,
+                                transform: barScale,
+                                transformOrigin: `${x + width / 2}px ${y + height}px`,
+                                filter: barFilter,
+                                pointerEvents: 'none',
+                                transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)'
+                              }}
+                            />
                             
                             {/* Rótulo do Dia */}
                             <text x={xStart + 6} y="160" fill="#64748b" fontSize="10" fontWeight="bold" textAnchor="middle">{dia}</text>
@@ -733,17 +939,29 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({ onNavigate }) 
                     {historyFilterId === 'all' ? (
                       perfis.map(kid => {
                         const colors = {
-                          lion: 'bg-pastel-blue-500',
-                          cat: 'bg-pastel-pink-500',
-                          owl: 'bg-pastel-purple-500',
-                          bear: 'bg-pastel-yellow-500'
+                          lion: '#46b3cc',
+                          cat: '#f67280',
+                          owl: '#9e74d6',
+                          bear: '#f1c43f'
                         };
-                        const classBg = colors[kid.avatar] || 'bg-slate-400';
+                        const fillColor = colors[kid.avatar] || '#cbd5e1';
+
+                        const patterns = {
+                          lion: 'url(#pattern-lines-1)',
+                          cat: 'url(#pattern-lines-2)',
+                          owl: 'url(#pattern-dots)',
+                          bear: 'url(#pattern-crosshatch)'
+                        };
+                        const patternFill = patterns[kid.avatar] || 'none';
+
                         const media = Math.round(kid.historicoSeteDias.reduce((a, b) => a + b, 0) / 7);
 
                         return (
                           <div key={kid.id} className="flex items-center gap-1.5 select-none cursor-pointer" onClick={() => setHistoryFilterId(kid.id)}>
-                            <span className={`w-3.5 h-3.5 ${classBg} rounded-md inline-block`} />
+                            <svg className="w-3.5 h-3.5 rounded-sm inline-block shrink-0" viewBox="0 0 14 14">
+                              <rect width="14" height="14" fill={fillColor} rx="3" />
+                              <rect width="14" height="14" fill={patternFill} rx="3" />
+                            </svg>
                             <span>{kid.nome} (Média: {media}m)</span>
                           </div>
                         );
@@ -754,17 +972,29 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({ onNavigate }) 
                         if (!kid) return null;
                         
                         const colors = {
-                          lion: 'bg-pastel-blue-500',
-                          cat: 'bg-pastel-pink-500',
-                          owl: 'bg-pastel-purple-500',
-                          bear: 'bg-pastel-yellow-500'
+                          lion: '#46b3cc',
+                          cat: '#f67280',
+                          owl: '#9e74d6',
+                          bear: '#f1c43f'
                         };
-                        const classBg = colors[kid.avatar] || 'bg-slate-400';
+                        const fillColor = colors[kid.avatar] || '#cbd5e1';
+
+                        const patterns = {
+                          lion: 'url(#pattern-lines-1)',
+                          cat: 'url(#pattern-lines-2)',
+                          owl: 'url(#pattern-dots)',
+                          bear: 'url(#pattern-crosshatch)'
+                        };
+                        const patternFill = patterns[kid.avatar] || 'none';
+
                         const media = Math.round(kid.historicoSeteDias.reduce((a, b) => a + b, 0) / 7);
 
                         return (
                           <div className="flex items-center gap-1.5">
-                            <span className={`w-3.5 h-3.5 ${classBg} rounded-md inline-block`} />
+                            <svg className="w-3.5 h-3.5 rounded-sm inline-block shrink-0" viewBox="0 0 14 14">
+                              <rect width="14" height="14" fill={fillColor} rx="3" />
+                              <rect width="14" height="14" fill={patternFill} rx="3" />
+                            </svg>
                             <span>Média de Uso do(a) {kid.nome}: {media}m / dia</span>
                           </div>
                         );
@@ -784,6 +1014,41 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({ onNavigate }) 
                     )}
                   </div>
 
+                  {/* Tabela de Estatísticas para Leitores de Tela */}
+                  <div className="sr-only">
+                    <h4>Tabela de Uso Semanal de Tela</h4>
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>Filho</th>
+                          <th>Segunda</th>
+                          <th>Terça</th>
+                          <th>Quarta</th>
+                          <th>Quinta</th>
+                          <th>Sexta</th>
+                          <th>Sábado</th>
+                          <th>Domingo</th>
+                          <th>Média Diária</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {perfis.map((kid) => {
+                          const total = kid.historicoSeteDias.reduce((a, b) => a + b, 0);
+                          const media = Math.round(total / 7);
+                          return (
+                            <tr key={kid.id}>
+                              <td>{kid.nome}</td>
+                              {kid.historicoSeteDias.map((val, idx) => (
+                                <td key={idx}>{val} min</td>
+                              ))}
+                              <td>{media} min/dia</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+
                 </div>
 
               </section>
@@ -793,7 +1058,13 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({ onNavigate }) 
 
           {/* TAB 2: SAÚDE E ALERTAS PEDIÁTRICOS */}
           {activeTab === 'alerts' && (
-            <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex flex-col gap-6">
+            <div 
+              role="tabpanel" 
+              id="panel-alerts" 
+              aria-labelledby="tab-alerts" 
+              tabIndex={0} 
+              className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex flex-col gap-6 focus-visible:outline-none"
+            >
               <div>
                 <h3 className="text-base font-extrabold text-slate-800">Alertas de Saúde e Prejuízos Cognitivos</h3>
                 <p className="text-xs text-slate-400 font-semibold mt-1">
@@ -828,7 +1099,14 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({ onNavigate }) 
 
           {/* TAB 3: CONFIGURAÇÃO DE LIMITES */}
           {activeTab === 'settings' && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div 
+              role="tabpanel" 
+              id="panel-settings" 
+              aria-labelledby="tab-settings" 
+              tabIndex={0} 
+              className="focus-visible:outline-none flex flex-col gap-6"
+            >
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               
               {/* Formulário Editar Limites */}
               <section className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex flex-col justify-between">
@@ -852,25 +1130,26 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({ onNavigate }) 
                     {selectedProfile && (
                       <>
                         <div>
-                          <div className="flex items-center justify-between text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">
-                            <span>Limite Diário de Tela</span>
-                            <span className="text-pastel-purple-500 font-extrabold text-sm font-kids">{editLimit} minutos</span>
-                          </div>
-                          <input
-                            type="range"
-                            min="15"
-                            max="240"
-                            step="15"
-                            value={editLimit}
-                            onChange={(e) => setEditLimit(parseInt(e.target.value))}
-                            className="w-full accent-pastel-purple-500 h-2 bg-slate-100 rounded-lg cursor-pointer"
-                          />
-                          <div className="flex justify-between text-[10px] text-slate-400 mt-1 font-semibold">
-                            <span>15 min</span>
-                            <span>Recomendado: 60m</span>
-                            <span>4 horas</span>
-                          </div>
-                        </div>
+                           <div className="flex items-center justify-between text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">
+                             <span>Limite Geral de Tela</span>
+                             <span className="text-pastel-purple-500 font-extrabold text-sm font-kids">{editLimit} minutos</span>
+                           </div>
+                           <input
+                             type="range"
+                             min="15"
+                             max="240"
+                             step="15"
+                             value={editLimit}
+                             onChange={(e) => setEditLimit(parseInt(e.target.value))}
+                             className="w-full accent-pastel-purple-500 h-2 bg-slate-100 rounded-lg cursor-pointer"
+                           />
+                           <div className="flex justify-between text-[10px] text-slate-400 mt-1 font-semibold">
+                             <span>15 min</span>
+                             <span>Recomendado: 60m</span>
+                             <span>4 horas</span>
+                           </div>
+                         </div>
+
 
                         <div>
                           <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">Horário de Repouso (Toque de Recolher)</label>
@@ -885,6 +1164,33 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({ onNavigate }) 
                           </div>
                           <span className="text-[10px] text-slate-400 block mt-1.5 leading-normal">
                             O dispositivo será bloqueado automaticamente a partir desse horário para incentivar o sono saudável.
+                          </span>
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">Janela de Horário Permitida (Uso de Telas)</label>
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="flex items-center gap-2">
+                              <span className="text-[10px] text-slate-400 font-bold font-parents">Das</span>
+                              <input
+                                type="time"
+                                value={editStartTime}
+                                onChange={(e) => setEditStartTime(e.target.value)}
+                                className="flex-1 p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-sm text-slate-700 outline-none focus:border-pastel-purple-400"
+                              />
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-[10px] text-slate-400 font-bold font-parents">Até</span>
+                              <input
+                                type="time"
+                                value={editEndTime}
+                                onChange={(e) => setEditEndTime(e.target.value)}
+                                className="flex-1 p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-sm text-slate-700 outline-none focus:border-pastel-purple-400"
+                              />
+                            </div>
+                          </div>
+                          <span className="text-[10px] text-slate-400 block mt-1.5 leading-normal">
+                            O app bloqueará automaticamente fora desta janela de horário, independente do tempo diário consumido.
                           </span>
                         </div>
                       </>
@@ -929,11 +1235,199 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({ onNavigate }) 
               </section>
 
             </div>
+
+              <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex flex-col gap-6 mt-6 font-parents">
+                <div>
+                  <h3 className="text-base font-extrabold text-slate-800 flex items-center gap-2">
+                    <Sparkles className="text-pastel-purple-500 animate-wiggle" size={18} />
+                    Gerenciador de Missões Reais
+                  </h3>
+                  <p className="text-xs text-slate-400 font-semibold mt-1">
+                    Estimule brincadeiras, hábitos saudáveis e afazeres domésticos offline! Crie missões personalizadas que rendem estrelas no painel da criança.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                  {/* Formulário Nova Missão (col-span-5) */}
+                  <form onSubmit={handleCreateQuest} className="lg:col-span-5 flex flex-col gap-4 border-b lg:border-b-0 lg:border-r border-slate-100 pb-6 lg:pb-0 lg:pr-6">
+                    <h4 className="text-xs font-black text-slate-400 uppercase tracking-wider">Nova Missão Personalizada</h4>
+                    
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-500 mb-1">Título da Missão</label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="Ex: Arrumar a cama 🛏️"
+                        value={questTitle}
+                        onChange={(e) => setQuestTitle(e.target.value)}
+                        className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-xs text-slate-700 outline-none focus:border-pastel-purple-400"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-500 mb-1">Instruções para a Criança</label>
+                      <textarea
+                        required
+                        rows={2}
+                        placeholder="Ex: Estique os lençóis e coloque os travesseiros arrumadinhos!"
+                        value={questDescription}
+                        onChange={(e) => setQuestDescription(e.target.value)}
+                        className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-medium text-xs text-slate-600 outline-none focus:border-pastel-purple-400 resize-none"
+                      />
+                    </div>
+
+                    {/* Recompensa Estrelas */}
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-500 mb-2">Recompensa (Estrelas ★)</label>
+                      <div className="flex gap-1.5">
+                        {[1, 2, 3, 4, 5].map((stars) => (
+                          <button
+                            key={stars}
+                            type="button"
+                            onClick={() => setQuestStars(stars)}
+                            className={`flex-1 py-1.5 rounded-lg border text-xs font-black transition-all flex items-center justify-center gap-0.5 ${
+                              questStars === stars
+                                ? 'bg-pastel-yellow-50 border-pastel-yellow-400 text-pastel-yellow-600 shadow-xs'
+                                : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100'
+                            }`}
+                          >
+                            <span className="text-pastel-yellow-500">★</span>
+                            <span>+{stars}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Seleção de Ícone / Categoria */}
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-500 mb-2">Ícone e Categoria</label>
+                      <div className="grid grid-cols-4 gap-2">
+                        {[
+                          { name: 'smile', icon: <Smile size={16} /> },
+                          { name: 'palette', icon: <Palette size={16} /> },
+                          { name: 'droplet', icon: <Droplet size={16} /> },
+                          { name: 'compass', icon: <Compass size={16} /> },
+                          { name: 'book', icon: <BookOpen size={16} /> },
+                          { name: 'star', icon: <Star size={16} /> },
+                          { name: 'run', icon: <Activity size={16} /> },
+                          { name: 'clean', icon: <Sparkles size={16} /> }
+                        ].map((iconItem) => (
+                          <button
+                            key={iconItem.name}
+                            type="button"
+                            onClick={() => setQuestIcon(iconItem.name as any)}
+                            className={`p-2 rounded-xl border flex flex-col items-center justify-center gap-1 transition-all ${
+                              questIcon === iconItem.name
+                                ? 'border-pastel-purple-400 bg-pastel-purple-50 text-pastel-purple-600 scale-105 shadow-2xs'
+                                : 'border-slate-100 bg-slate-50 text-slate-400 hover:border-slate-200 hover:text-slate-600'
+                            }`}
+                          >
+                            {iconItem.icon}
+                            <span className="text-[8px] font-bold uppercase tracking-wider">{iconItem.name}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <button
+                      type="submit"
+                      className="mt-2 py-2.5 bg-pastel-purple-500 hover:bg-pastel-purple-600 text-white rounded-xl font-extrabold text-xs shadow-md hover:shadow-lg flex items-center justify-center gap-1.5 transition-all active:scale-95 border-b-4 border-pastel-purple-700"
+                    >
+                      <Plus size={14} /> Ativar Missão Real 🚀
+                    </button>
+                  </form>
+
+                  {/* Lista de Missões Ativas (col-span-7) */}
+                  <div className="lg:col-span-7 flex flex-col gap-4">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-xs font-black text-slate-400 uppercase tracking-wider">Missões Ativas na Casa</h4>
+                      <span className="text-[9px] bg-slate-100 text-slate-500 font-extrabold px-2 py-0.5 rounded-md border border-slate-200">
+                        {quests.length} Missão(ões)
+                      </span>
+                    </div>
+
+                    <div className="flex flex-col gap-3 max-h-[350px] overflow-y-auto pr-1 select-none no-scrollbar">
+                      {quests.map((q) => {
+                        const isCustom = !!q.custom;
+                        
+                        // Encontrar representação local do ícone
+                        const localIconsMap = {
+                          smile: <Smile size={16} />,
+                          palette: <Palette size={16} />,
+                          droplet: <Droplet size={16} />,
+                          compass: <Compass size={16} />,
+                          book: <BookOpen size={16} />,
+                          star: <Star size={16} />,
+                          run: <Activity size={16} />,
+                          clean: <Sparkles size={16} />
+                        };
+
+                        return (
+                          <div
+                            key={q.id}
+                            className={`p-3.5 rounded-2xl border transition-all flex items-center justify-between gap-4 ${
+                              isCustom 
+                                ? 'bg-pastel-purple-50/10 border-pastel-purple-200/60 shadow-2xs hover:border-pastel-purple-300' 
+                                : 'bg-slate-50/50 border-slate-150'
+                            }`}
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className={`p-2 bg-white rounded-xl shadow-2xs border ${
+                                isCustom ? 'text-pastel-purple-500 border-pastel-purple-100' : 'text-slate-500 border-slate-100'
+                              }`}>
+                                {localIconsMap[q.icone] || <Star size={16} />}
+                              </div>
+                              <div>
+                                <div className="flex items-center gap-1.5">
+                                  <h5 className="font-extrabold text-slate-800 text-xs">{q.titulo}</h5>
+                                  <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded ${
+                                    isCustom ? 'bg-pastel-purple-100 text-pastel-purple-600' : 'bg-slate-200/60 text-slate-500 font-parents'
+                                  }`}>
+                                    {isCustom ? 'Criada por Você' : 'Padrão'}
+                                  </span>
+                                </div>
+                                <p className="text-[10px] text-slate-400 font-semibold font-parents mt-0.5 leading-tight">{q.descricao}</p>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-3 shrink-0">
+                              <div className="bg-white border border-slate-150 px-2 py-1 rounded-lg text-[10px] font-black text-slate-700 flex items-center gap-0.5 shadow-3xs">
+                                <span className="text-pastel-yellow-500">★</span>
+                                <span>+{q.recompensa}</span>
+                              </div>
+
+                              {isCustom ? (
+                                <button
+                                  type="button"
+                                  onClick={() => deletarQuestCustomizada(q.id)}
+                                  className="p-1.5 hover:bg-pastel-pink-50 text-pastel-pink-500 rounded-lg border border-transparent hover:border-pastel-pink-200 transition-colors"
+                                  title="Excluir Missão Customizada"
+                                >
+                                  <Trash size={14} />
+                                </button>
+                              ) : (
+                                <span className="w-7 h-7" /> // Spacing matching trash icon width
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           )}
 
           {/* TAB 4: RANKING DE MISSÕES CUMPRIDAS */}
           {activeTab === 'ranking' && (
-            <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex flex-col gap-6 font-kids">
+            <div 
+              role="tabpanel" 
+              id="panel-ranking" 
+              aria-labelledby="tab-ranking" 
+              tabIndex={0} 
+              className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex flex-col gap-6 font-kids focus-visible:outline-none"
+            >
               <div className="text-center md:text-left">
                 <h3 className="text-lg font-black text-slate-800 flex items-center justify-center md:justify-start gap-2">
                   <Trophy className="text-pastel-yellow-500 fill-pastel-yellow-200 animate-wiggle shrink-0" size={22} />
@@ -1091,6 +1585,338 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({ onNavigate }) 
             </div>
           )}
 
+          {activeTab === 'digest' && (
+            <div 
+              role="tabpanel" 
+              id="panel-digest" 
+              aria-labelledby="tab-digest" 
+              tabIndex={0} 
+              className="grid grid-cols-1 lg:grid-cols-12 gap-6 animate-pop focus-visible:outline-none"
+            >
+
+              {/* COLUNA ESQUERDA: CONFIGURAÇÕES E FLUXO (4 cols) */}
+              <div className="lg:col-span-5 flex flex-col gap-6">
+                
+                {/* Card Configurações */}
+                <section className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
+                  <h3 className="text-base font-extrabold text-slate-800 mb-2 flex items-center gap-1.5">
+                    <Settings size={18} className="text-pastel-purple-500" />
+                    Preferências do Digest
+                  </h3>
+                  <p className="text-xs text-slate-400 font-semibold mb-4 leading-normal font-parents">
+                    Configure os dados de recebimento do relatório consolidado semanal.
+                  </p>
+
+                  <form onSubmit={handleSaveEmailConfig} className="flex flex-col gap-4">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">E-mail de Destino</label>
+                      <input
+                        type="email"
+                        required
+                        placeholder="Ex: maeepai@exemplo.com"
+                        value={emailInput}
+                        onChange={(e) => setEmailInput(e.target.value)}
+                        className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-sm text-slate-700 outline-none focus:border-pastel-purple-400"
+                      />
+                    </div>
+
+                    {/* Toggle Ativo */}
+                    <div className="flex items-center justify-between p-3.5 bg-slate-50 rounded-2xl border border-slate-100 mt-1">
+                      <div>
+                        <span className="text-xs font-bold text-slate-700 block">Enviar toda Segunda-feira</span>
+                        <span className="text-[10px] text-slate-400 font-semibold font-parents">Digest agendado para 08:00 AM</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setEmailAtivo(!emailAtivo)}
+                        className="transition-transform active:scale-95 shrink-0"
+                      >
+                        {emailAtivo ? (
+                          <ToggleRight size={38} className="text-pastel-purple-500 fill-pastel-purple-100" />
+                        ) : (
+                          <ToggleLeft size={38} className="text-slate-300" />
+                        )}
+                      </button>
+                    </div>
+
+                    {/* Checkboxes adicionais */}
+                    <div className="flex flex-col gap-3 mt-1.5 p-3 rounded-2xl border border-slate-100 bg-slate-50/50">
+                      <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block mb-1">Incluir Conteúdo</span>
+                      
+                      <label className="flex items-center gap-2.5 cursor-pointer text-xs font-bold text-slate-600 select-none">
+                        <input
+                          type="checkbox"
+                          checked={emailAlertas}
+                          onChange={(e) => setEmailAlertas(e.target.checked)}
+                          className="w-4 h-4 accent-pastel-purple-500 rounded border-slate-300 cursor-pointer"
+                        />
+                        <span className="font-parents">Alertas Pediátricos e Diagnósticos</span>
+                      </label>
+
+                      <label className="flex items-center gap-2.5 cursor-pointer text-xs font-bold text-slate-600 select-none">
+                        <input
+                          type="checkbox"
+                          checked={emailRanking}
+                          onChange={(e) => setEmailRanking(e.target.checked)}
+                          className="w-4 h-4 accent-pastel-purple-500 rounded border-slate-300 cursor-pointer"
+                        />
+                        <span className="font-parents">Ranking e Estrelas Cumpridas</span>
+                      </label>
+                    </div>
+
+                    <button
+                      type="submit"
+                      className="mt-2 w-full py-3 bg-pastel-purple-500 hover:bg-pastel-purple-600 text-white rounded-xl font-extrabold text-sm shadow-md hover:shadow-lg flex items-center justify-center gap-2 transition-all active:scale-95"
+                    >
+                      <Save size={16} /> Salvar Configurações
+                    </button>
+                  </form>
+                </section>
+
+                {/* Card Simulação */}
+                <section className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex flex-col gap-4 font-parents">
+                  <div>
+                    <h3 className="text-base font-extrabold text-slate-800">Simulador de Inbox</h3>
+                    <p className="text-xs text-slate-400 font-semibold mt-1">
+                      Envie um e-mail de teste imediato para conferir os dados da última semana do EquilibraKids.
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    disabled={isSimulatingEmail}
+                    onClick={handleSimulateEmail}
+                    className="w-full py-3 bg-gradient-to-r from-pastel-purple-500 to-pastel-blue-500 hover:from-pastel-purple-600 hover:to-pastel-blue-600 text-white rounded-xl font-extrabold text-sm shadow-md hover:shadow-lg disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-all active:scale-95"
+                  >
+                    {isSimulatingEmail ? (
+                      <>
+                        <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin inline-block mr-1" />
+                        <span>Consolidando dados e enviando...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Mail size={16} />
+                        <span>Simular Envio de E-mail ✉️</span>
+                      </>
+                    )}
+                  </button>
+
+                  {/* Aviso Local Sutil */}
+                  {emailSentToast && (
+                    <div className="w-full bg-pastel-green-50 text-slate-700 font-bold px-4 py-3.5 rounded-2xl border border-pastel-green-200/80 animate-fade-in text-xs flex items-start gap-2.5">
+                      <div className="p-1 bg-white text-pastel-green-600 rounded-lg shrink-0 mt-0.5 shadow-2xs">
+                        <Sparkles size={13} className="animate-pulse" />
+                      </div>
+                      <span className="leading-normal text-slate-600">
+                        Relatório semanal simulado e enviado com sucesso para <strong className="text-slate-900 font-extrabold">{emailConfig.email}</strong>! Verifique o preview ao lado.
+                      </span>
+                    </div>
+                  )}
+
+                  <div className="p-3 bg-pastel-yellow-50/50 border border-pastel-yellow-200 rounded-2xl text-[10px] text-slate-500 font-semibold leading-relaxed">
+                    💡 <strong>Como funciona na vida real?</strong> Nosso sistema calcula de forma autônoma na madrugada de domingo para segunda o histórico de consumo, gera gráficos estatísticos e dispara um boletim por e-mail, poupando os pais de abrirem o console todos os dias.
+                  </div>
+                </section>
+
+              </div>
+
+              {/* COLUNA DIREITA: PREVIEW PREMIUM DO CLIENTE DE E-MAIL (8 cols) */}
+              <div className="lg:col-span-7 flex flex-col gap-4">
+                
+                {/* Janela de Cliente de E-mail */}
+                <div className="w-full bg-slate-100 border-2 border-slate-200 rounded-[32px] overflow-hidden shadow-md flex flex-col">
+                  
+                  {/* Barra Superior do Cliente de E-mail (Mac Style) */}
+                  <div className="bg-slate-100 border-b border-slate-200 px-5 py-3 flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <span className="w-3 h-3 rounded-full bg-pastel-pink-400" />
+                      <span className="w-3 h-3 rounded-full bg-pastel-yellow-400" />
+                      <span className="w-3 h-3 rounded-full bg-pastel-green-500" />
+                    </div>
+                    <div className="bg-slate-200/80 border border-slate-300/40 rounded-lg text-[10px] text-slate-500 font-bold px-12 py-1 truncate max-w-sm font-parents">
+                      inbox.equilibrakids.com/digest
+                    </div>
+                    <div className="w-12" /> {/* Spacing */}
+                  </div>
+
+                  {/* Header de Metadados do E-mail */}
+                  <div className="bg-white p-5 border-b border-slate-100 flex flex-col gap-2 font-parents text-xs">
+                    <div className="flex items-start justify-between gap-4">
+                      <h4 className="text-sm sm:text-base font-extrabold text-slate-800 leading-tight">
+                        EquilibraKids Digest: Balanço do(a) {perfis.map(p => p.nome).join(', ')} da última semana 📊
+                      </h4>
+                      <span className="bg-slate-100 border border-slate-200 text-slate-500 text-[10px] font-black uppercase px-2 py-0.5 rounded-md shrink-0">
+                        Entrada 📥
+                      </span>
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-[11px] mt-1 pt-1.5 border-t border-slate-50">
+                      <div>
+                        <span className="text-slate-400">De:</span> <strong className="text-slate-700">EquilibraKids Relatórios</strong> <span className="text-slate-400">&lt;relatorios@equilibrakids.com.br&gt;</span>
+                      </div>
+                      <div className="text-slate-400 font-semibold text-right">
+                        Segunda-feira, 08:00 AM (Hoje)
+                      </div>
+                    </div>
+
+                    <div className="text-[11px]">
+                      <span className="text-slate-400">Para:</span> <strong className="text-slate-700">Responsável Legal</strong> <span className="text-slate-400">&lt;{emailConfig.email}&gt;</span>
+                    </div>
+                  </div>
+
+                  {/* CORPO DO E-MAIL (O Relatório em Si) */}
+                  <div className="bg-slate-100 p-6 overflow-y-auto max-h-[580px] select-none no-scrollbar">
+                    
+                    {/* Molde do Email HTML */}
+                    <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm max-w-xl mx-auto flex flex-col">
+                      
+                      {/* Email Header */}
+                      <div className="bg-gradient-to-r from-pastel-purple-500 to-pastel-blue-500 p-6 text-center text-white relative overflow-hidden">
+                        <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.15),transparent)] pointer-events-none" />
+                        <h2 className="text-base sm:text-lg font-black tracking-tight leading-none">EquilibraKids Weekly Digest</h2>
+                        <p className="text-[10px] font-semibold text-white/90 uppercase tracking-widest mt-1.5 font-parents">Relatório de Equilíbrio Digital • Segunda-Feira</p>
+                      </div>
+
+                      {/* Email Greeting */}
+                      <div className="p-6 border-b border-slate-100 font-parents">
+                        <h3 className="text-xs sm:text-sm font-bold text-slate-800 mb-1.5">Olá pais,</h3>
+                        <p className="text-[11px] sm:text-xs text-slate-500 leading-relaxed font-semibold">
+                          Aqui está o consolidado de uso de dispositivos digitais e a evolução de metas de equilíbrio de seus filhos referente aos últimos 7 dias. Com este boletim, você monitora os hábitos de saúde deles sem esforço.
+                        </p>
+                      </div>
+
+                      {/* Conteúdo dinâmico das crianças */}
+                      <div className="p-6 flex flex-col gap-6 border-b border-slate-100">
+                        {perfis.map((kid) => {
+                          const somaHistorico = kid.historicoSeteDias.reduce((a, b) => a + b, 0);
+                          const mediaUso = Math.round(somaHistorico / 7);
+                          
+                          // Cálculo dinâmico de cores/estilo
+                          let statusLabel = 'Equilibrado';
+                          let statusBg = 'bg-emerald-50 text-emerald-600 border-emerald-100';
+
+                          if (mediaUso > 60 && mediaUso <= 120) {
+                            statusLabel = 'Consumo Moderado';
+                            statusBg = 'bg-pastel-yellow-50 text-pastel-yellow-600 border-pastel-yellow-200/60';
+                          } else if (mediaUso > 120) {
+                            statusLabel = 'Atenção Necessária';
+                            statusBg = 'bg-pastel-pink-50 text-pastel-pink-500 border-pastel-pink-100';
+                          }
+
+                          return (
+                            <div key={kid.id} className="p-4 rounded-xl border border-slate-100 bg-slate-50/50 flex flex-col gap-3 font-parents">
+                              
+                              {/* Criança Identidade */}
+                              <div className="flex items-center justify-between gap-4">
+                                <div className="flex items-center gap-2.5">
+                                  <Avatar type={kid.avatar} className="w-10 h-10 shrink-0" />
+                                  <div>
+                                    <h4 className="font-extrabold text-slate-800 text-xs sm:text-sm font-kids">{kid.nome}</h4>
+                                    <span className="text-[9px] text-slate-400 font-semibold block mt-0.5">Média Diária: {mediaUso}m / dia</span>
+                                  </div>
+                                </div>
+                                <span className={`text-[8px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border ${statusBg}`}>
+                                  {statusLabel}
+                                </span>
+                              </div>
+
+                              {/* Barra de média comparativa */}
+                              <div>
+                                <div className="w-full h-2 bg-slate-200/70 rounded-full overflow-hidden">
+                                  <div 
+                                    className={`h-full ${statusLabel === 'Atenção Necessária' ? 'bg-pastel-pink-500' : (statusLabel === 'Consumo Moderado' ? 'bg-pastel-yellow-500' : 'bg-pastel-green-500')} rounded-full`}
+                                    style={{ width: `${Math.min(100, (mediaUso / 180) * 100)}%` }}
+                                  />
+                                </div>
+                                <div className="flex justify-between text-[8px] text-slate-400 mt-1 font-semibold">
+                                  <span>Limite Ideal: {kid.limiteDiario}m</span>
+                                  <span>Média Calculada</span>
+                                </div>
+                              </div>
+
+                              {/* Estatísticas e Ranking */}
+                              {emailRanking && (
+                                <div className="grid grid-cols-2 gap-3 mt-1.5 pt-2.5 border-t border-slate-200/50 border-dashed">
+                                  <div className="bg-white p-2 rounded-lg border border-slate-100 flex items-center justify-between">
+                                    <span className="text-[8px] text-slate-400 font-black uppercase">Estrelas</span>
+                                    <span className="text-xs font-black text-pastel-yellow-500">★ {kid.estrelasAcumuladas}</span>
+                                  </div>
+                                  <div className="bg-white p-2 rounded-lg border border-slate-100 flex items-center justify-between">
+                                    <span className="text-[8px] text-slate-400 font-black uppercase">Quests Offline</span>
+                                    <span className="text-xs font-black text-slate-700">{kid.missoesCumpridas} concluintes</span>
+                                  </div>
+                                </div>
+                              )}
+
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {/* Alertas de saúde da semana */}
+                      {emailAlertas && (
+                        <div className="p-6 border-b border-slate-100 bg-slate-50/20 font-parents">
+                          <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-3">Sinais de Atenção Clínicos</h3>
+                          
+                          {alertas.length === 0 ? (
+                            <div className="text-center py-4 bg-white rounded-xl border border-slate-100">
+                              <span className="text-xs font-bold text-slate-500">Tudo equilibrado! Nenhum alerta de saúde disparou na semana. 👍</span>
+                            </div>
+                          ) : (
+                            <div className="flex flex-col gap-3">
+                              {alertas.slice(0, 2).map((alert) => {
+                                const severityColors = {
+                                  critico: 'text-pastel-pink-500 bg-pastel-pink-50 border-pastel-pink-100',
+                                  preocupante: 'text-pastel-purple-500 bg-pastel-purple-50 border-pastel-purple-100',
+                                  alerta: 'text-pastel-yellow-600 bg-pastel-yellow-50 border-pastel-yellow-200/60',
+                                  evolucao: 'text-pastel-green-600 bg-pastel-green-50 border-pastel-green-100'
+                                };
+                                const classColor = severityColors[alert.gravidade] || severityColors.alerta;
+
+                                return (
+                                  <div key={alert.id} className="p-3 bg-white border border-slate-100 rounded-xl flex flex-col gap-1">
+                                    <div className="flex items-center justify-between gap-2">
+                                      <span className="font-extrabold text-[11px] text-slate-800">{alert.titulo}</span>
+                                      <span className={`text-[7px] font-black uppercase px-2 py-0.5 rounded-full border ${classColor}`}>
+                                        {alert.gravidade}
+                                      </span>
+                                    </div>
+                                    <span className="text-[10px] text-slate-400 font-semibold block">{alert.childNome} • {alert.descricao}</span>
+                                    <span className="text-[9px] text-slate-500 font-semibold block leading-relaxed mt-1 bg-slate-50 p-2 rounded-lg border border-slate-100">
+                                      <strong>Dica de Intervenção:</strong> {alert.dicaPratica}
+                                    </span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Dica da semana e encerramento */}
+                      <div className="p-6 bg-gradient-to-br from-pastel-purple-50/40 to-pastel-blue-50/40 text-center font-parents">
+                        <span className="text-xl">💡</span>
+                        <h4 className="text-xs font-bold text-slate-700 mt-1.5">Dica Pediatria da Semana</h4>
+                        <p className="text-[10px] text-slate-500 leading-relaxed font-semibold max-w-sm mx-auto mt-1">
+                          "Evite entregar dispositivos nos momentos de choro ou tédio. A criança precisa passar pela experiência do tédio para incentivar a imaginação e a autorregulação do sistema dopaminérgico."
+                        </p>
+                        
+                        <div className="mt-6 pt-5 border-t border-slate-200/60 text-[9px] text-slate-400 font-bold uppercase tracking-wider">
+                          © EquilibraKids • Relatório Consolidado de Bem-Estar
+                        </div>
+                      </div>
+
+                    </div>
+
+                  </div>
+
+                </div>
+
+              </div>
+
+            </div>
+          )}
+
           {/* FORMULÁRIO DE CADASTRO DE PERFIL (OVERLAY/MODAL INTEGRADO) */}
           {showNewForm && (
             <div className="fixed inset-0 z-40 bg-soft-dark-900/40 backdrop-blur-sm flex items-center justify-center p-4">
@@ -1142,7 +1968,7 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({ onNavigate }) 
 
                 <div>
                   <div className="flex items-center justify-between text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">
-                    <span>Limite Diário</span>
+                    <span>Limite Diário Geral</span>
                     <span className="text-pastel-green-600 font-extrabold text-sm">{newLimit} min</span>
                   </div>
                   <input
@@ -1154,6 +1980,31 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({ onNavigate }) 
                     onChange={(e) => setNewLimit(parseInt(e.target.value))}
                     className="w-full accent-pastel-green-500 h-2 bg-slate-100 rounded-lg cursor-pointer"
                   />
+                </div>
+
+
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Janela Das</label>
+                    <input
+                      type="time"
+                      required
+                      value={newStartTime}
+                      onChange={(e) => setNewStartTime(e.target.value)}
+                      className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-sm text-slate-700 outline-none focus:border-pastel-green-400"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Janela Até</label>
+                    <input
+                      type="time"
+                      required
+                      value={newEndTime}
+                      onChange={(e) => setNewEndTime(e.target.value)}
+                      className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-sm text-slate-700 outline-none focus:border-pastel-green-400"
+                    />
+                  </div>
                 </div>
 
                 {/* Seleção de Avatar */}

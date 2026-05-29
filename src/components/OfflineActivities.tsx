@@ -1,63 +1,62 @@
 import React, { useState } from 'react';
-import { Palette, Compass, Droplet, Sparkles, Smile, CheckCircle, Flame } from 'lucide-react';
-
-interface Activity {
-  id: string;
-  titulo: string;
-  descricao: string;
-  recompensa: number;
-  icon: React.ReactNode;
-  cor: string;
-  corTexto: string;
-}
+import { Palette, Compass, Droplet, Sparkles, Smile, CheckCircle, Flame, BookOpen, Star, Activity } from 'lucide-react';
+import { useScreenTime } from '../hooks/useScreenTime';
 
 interface OfflineActivitiesProps {
   onCompleteActivity: (estrelas: number) => void;
   isCompact?: boolean;
 }
 
+const iconMap: Record<string, React.ReactNode> = {
+  smile: <Smile className="w-6 h-6" />,
+  palette: <Palette className="w-6 h-6" />,
+  droplet: <Droplet className="w-6 h-6" />,
+  compass: <Compass className="w-6 h-6" />,
+  book: <BookOpen className="w-6 h-6" />,
+  star: <Star className="w-6 h-6" />,
+  run: <Activity className="w-6 h-6" />,
+  clean: <Sparkles className="w-6 h-6" />
+};
+
+const colorSchemes: Record<string, { cor: string; corTexto: string }> = {
+  smile: {
+    cor: 'bg-pastel-pink-100 hover:bg-pastel-pink-200 border-pastel-pink-200',
+    corTexto: 'text-pink-800'
+  },
+  palette: {
+    cor: 'bg-pastel-yellow-100 hover:bg-pastel-yellow-200 border-pastel-yellow-200',
+    corTexto: 'text-amber-800'
+  },
+  droplet: {
+    cor: 'bg-pastel-green-100 hover:bg-pastel-green-200 border-pastel-green-200',
+    corTexto: 'text-emerald-800'
+  },
+  compass: {
+    cor: 'bg-pastel-blue-100 hover:bg-pastel-blue-200 border-pastel-blue-200',
+    corTexto: 'text-sky-800'
+  },
+  book: {
+    cor: 'bg-pastel-purple-100 hover:bg-pastel-purple-200 border-pastel-purple-200',
+    corTexto: 'text-purple-800'
+  },
+  star: {
+    cor: 'bg-amber-100 hover:bg-amber-200 border-amber-200',
+    corTexto: 'text-amber-800'
+  },
+  run: {
+    cor: 'bg-orange-100 hover:bg-orange-200 border-orange-200',
+    corTexto: 'text-orange-800'
+  },
+  clean: {
+    cor: 'bg-emerald-100 hover:bg-emerald-200 border-emerald-200',
+    corTexto: 'text-emerald-800'
+  }
+};
+
 export const OfflineActivities: React.FC<OfflineActivitiesProps> = ({ onCompleteActivity, isCompact = false }) => {
+  const { quests } = useScreenTime();
   const [completedList, setCompletedList] = useState<string[]>([]);
   const [activeCelebration, setActiveCelebration] = useState<string | null>(null);
-
-  const activities: Activity[] = [
-    {
-      id: 'stretch-1',
-      titulo: 'Espreguiçar de Gatinho 🐱',
-      descricao: 'Fique de pé, estique os braços lá no alto e respire fundo três vezes como um gatinho acordando!',
-      recompensa: 1,
-      icon: <Smile className="w-6 h-6" />,
-      cor: 'bg-pastel-pink-100 hover:bg-pastel-pink-200 border-pastel-pink-200',
-      corTexto: 'text-pastel-pink-500'
-    },
-    {
-      id: 'drawing-2',
-      titulo: 'Artista do Papel 🎨',
-      descricao: 'Pegue papel e giz de cera e desenhe um animal fantástico de três cabeças ou seu brinquedo preferido!',
-      recompensa: 3,
-      icon: <Palette className="w-6 h-6" />,
-      cor: 'bg-pastel-yellow-100 hover:bg-pastel-yellow-200 border-pastel-yellow-200',
-      corTexto: 'text-pastel-yellow-600'
-    },
-    {
-      id: 'water-3',
-      titulo: 'Poção da Hidratação 💧',
-      descricao: 'Beba um copo de água bem fresquinho e coma uma fruta saborosa para se recarregar!',
-      recompensa: 2,
-      icon: <Droplet className="w-6 h-6" />,
-      cor: 'bg-pastel-green-100 hover:bg-pastel-green-200 border-pastel-green-200',
-      corTexto: 'text-pastel-green-600'
-    },
-    {
-      id: 'origami-4',
-      titulo: 'Engenheiro de Avião ⛵',
-      descricao: 'Faça um avião ou barquinho de papel tradicional e aposte corrida para ver se ele consegue planar longe!',
-      recompensa: 3,
-      icon: <Compass className="w-6 h-6" />,
-      cor: 'bg-pastel-blue-100 hover:bg-pastel-blue-200 border-pastel-blue-200',
-      corTexto: 'text-pastel-blue-600'
-    }
-  ];
 
   const handleComplete = (id: string, recompensa: number) => {
     if (completedList.includes(id)) return;
@@ -88,17 +87,23 @@ export const OfflineActivities: React.FC<OfflineActivitiesProps> = ({ onComplete
 
       {/* Grid de Missões */}
       <div className={`grid gap-3 sm:gap-4 ${isCompact ? 'grid-cols-1' : 'grid-cols-1 sm:grid-cols-2'}`}>
-        {activities.map((act) => {
+        {quests.map((act) => {
           const isCompleted = completedList.includes(act.id);
           const isCelebrating = activeCelebration === act.id;
+          const scheme = colorSchemes[act.icone] || colorSchemes.smile;
+          const icon = iconMap[act.icone] || iconMap.smile;
           
           return (
-            <div
+            <button
               key={act.id}
-              className={`p-3.5 rounded-[22px] sm:rounded-3xl border-2 transition-all relative overflow-hidden flex flex-col justify-between ${
+              disabled={isCompleted}
+              aria-label={isCompleted 
+                ? `Missão concluída: ${act.titulo}. Ganhou ${act.recompensa} estrela${act.recompensa > 1 ? 's' : ''}`
+                : `Completar missão: ${act.titulo}. Recompensa: ${act.recompensa} estrela${act.recompensa > 1 ? 's' : ''}`}
+              className={`text-left p-3.5 rounded-[22px] sm:rounded-3xl border-2 transition-all relative overflow-hidden flex flex-col justify-between ${
                 isCompleted 
                   ? 'bg-slate-50 border-slate-200 opacity-70' 
-                  : `${act.cor} cursor-pointer hover:shadow-md hover:-translate-y-0.5 active:translate-y-0`
+                  : `${scheme.cor} cursor-pointer hover:shadow-md hover:-translate-y-0.5 active:translate-y-0`
               }`}
               onClick={() => !isCompleted && handleComplete(act.id, act.recompensa)}
             >
@@ -111,12 +116,11 @@ export const OfflineActivities: React.FC<OfflineActivitiesProps> = ({ onComplete
                 </div>
               )}
 
-
               <div>
                 {/* Ícone & Recompensa */}
                 <div className="flex items-center justify-between mb-2">
-                  <div className={`p-2 bg-white rounded-2xl ${act.corTexto} shadow-sm shrink-0`}>
-                    {act.icon}
+                  <div className={`p-2 bg-white rounded-2xl ${scheme.corTexto} shadow-sm shrink-0`}>
+                    {icon}
                   </div>
                   <div className="bg-white/80 border border-white text-xs font-black px-2.5 py-1 rounded-full flex items-center gap-1">
                     <span className="text-pastel-yellow-500">★</span>
@@ -139,12 +143,12 @@ export const OfflineActivities: React.FC<OfflineActivitiesProps> = ({ onComplete
                     <CheckCircle size={14} className="fill-emerald-50" /> Missão Concluída!
                   </span>
                 ) : (
-                  <span className={`text-xs font-black px-3.5 py-1 bg-white/90 rounded-full border shadow-sm ${act.corTexto} border-white active:scale-95 transition-transform`}>
+                  <span className={`text-xs font-black px-3.5 py-1 bg-white/90 rounded-full border shadow-sm ${scheme.corTexto} border-white active:scale-95 transition-transform`}>
                     Quero Fazer! →
                   </span>
                 )}
               </div>
-            </div>
+            </button>
           );
         })}
       </div>

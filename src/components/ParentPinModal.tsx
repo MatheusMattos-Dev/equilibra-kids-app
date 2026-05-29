@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X, Lock, ShieldAlert, Award, Calculator, Eye, EyeOff } from 'lucide-react';
 
 interface ParentPinModalProps {
@@ -15,6 +15,9 @@ export const ParentPinModal: React.FC<ParentPinModalProps> = ({ isOpen, onClose,
   const [showPin, setShowPin] = useState<boolean>(false);
   const [error, setError] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string>('');
+
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
 
   // Gerar Desafio Matemático Aleatório
   const generateMathChallenge = () => {
@@ -39,6 +42,25 @@ export const ParentPinModal: React.FC<ParentPinModalProps> = ({ isOpen, onClose,
       setError(false);
       setErrorMessage('');
       generateMathChallenge();
+
+      previousFocusRef.current = document.activeElement as HTMLElement;
+      const timer = setTimeout(() => {
+        closeButtonRef.current?.focus();
+      }, 50);
+
+      const handleKeyDown = (e: KeyboardEvent) => {
+        if (e.key === 'Escape') {
+          onClose();
+        }
+      };
+      window.addEventListener('keydown', handleKeyDown);
+
+      return () => {
+        window.removeEventListener('keydown', handleKeyDown);
+        clearTimeout(timer);
+      };
+    } else {
+      previousFocusRef.current?.focus();
     }
   }, [isOpen]);
 
@@ -102,6 +124,9 @@ export const ParentPinModal: React.FC<ParentPinModalProps> = ({ isOpen, onClose,
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-soft-dark-900/60 backdrop-blur-md animate-fade-in font-parents">
       <div 
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="modal-parents-title"
         className={`w-full max-w-md bg-white rounded-3xl overflow-hidden shadow-2xl border-4 border-pastel-purple-200 glass-panel transition-all duration-300 ${
           error ? 'animate-bounce shadow-pastel-pink-200' : ''
         }`}
@@ -110,7 +135,9 @@ export const ParentPinModal: React.FC<ParentPinModalProps> = ({ isOpen, onClose,
         {/* Header */}
         <div className="relative p-6 text-center bg-gradient-to-r from-pastel-purple-50 to-pastel-blue-50 border-b border-pastel-purple-100">
           <button 
+            ref={closeButtonRef}
             onClick={onClose} 
+            aria-label="Fechar"
             className="absolute top-4 right-4 p-1.5 rounded-full hover:bg-pastel-purple-100 transition-colors text-slate-400 hover:text-slate-600"
           >
             <X size={20} />
@@ -120,8 +147,8 @@ export const ParentPinModal: React.FC<ParentPinModalProps> = ({ isOpen, onClose,
             <Lock size={24} className="animate-pulse" />
           </div>
           
-          <h3 className="text-xl font-bold text-slate-800">Controle de Adultos</h3>
-          <p className="text-sm text-slate-500 mt-1">Insira a senha dos pais para acessar as configurações</p>
+          <h3 id="modal-parents-title" className="text-xl font-bold text-slate-800">Controle de Adultos</h3>
+          <p id="pin-instruction" className="text-sm text-slate-500 mt-1">Insira a senha dos pais para acessar as configurações</p>
         </div>
 
         {/* Seleção do Método */}
@@ -162,7 +189,15 @@ export const ParentPinModal: React.FC<ParentPinModalProps> = ({ isOpen, onClose,
           {method === 'pin' ? (
             /* Campo PIN */
             <div className="w-full flex flex-col items-center">
-              <div className="relative flex items-center justify-center gap-3.5 py-4 mb-6">
+              <div
+                role="textbox"
+                aria-label="PIN de 4 dígitos"
+                aria-valuenow={pin.length}
+                aria-valuetext={`${pin.length} de 4 dígitos preenchidos`}
+                aria-describedby="pin-instruction pin-demo-note"
+                tabIndex={0}
+                className="relative flex items-center justify-center gap-3.5 py-4 mb-6 outline-none focus-visible:ring-2 focus-visible:ring-pastel-purple-500 rounded-lg px-2"
+              >
                 {[0, 1, 2, 3].map((idx) => (
                   <div 
                     key={idx}
@@ -177,6 +212,8 @@ export const ParentPinModal: React.FC<ParentPinModalProps> = ({ isOpen, onClose,
                 <button
                   type="button"
                   onClick={() => setShowPin(!showPin)}
+                  aria-label={showPin ? "Ocultar PIN" : "Mostrar PIN"}
+                  aria-pressed={showPin}
                   className="absolute -right-10 text-slate-400 hover:text-slate-600 p-1"
                   title={showPin ? "Ocultar PIN" : "Mostrar PIN"}
                 >
@@ -217,11 +254,16 @@ export const ParentPinModal: React.FC<ParentPinModalProps> = ({ isOpen, onClose,
           )}
 
           {/* Teclado Numérico Lúdico */}
-          <div className="w-full max-w-[280px] grid grid-cols-3 gap-3">
+          <div
+            role="group"
+            aria-label="Teclado numérico virtual"
+            className="w-full max-w-[280px] grid grid-cols-3 gap-3"
+          >
             {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((num) => (
               <button
                 key={num}
                 onClick={() => handleNumberClick(num)}
+                aria-label={`Dígito ${num}`}
                 className="h-14 bg-slate-50 hover:bg-pastel-purple-100 hover:text-pastel-purple-600 border border-slate-100 text-slate-600 font-extrabold text-lg rounded-2xl transition-all active:scale-95 flex items-center justify-center shadow-sm"
               >
                 {num}
@@ -233,25 +275,28 @@ export const ParentPinModal: React.FC<ParentPinModalProps> = ({ isOpen, onClose,
                 else setMathAnswer('');
                 setError(false);
               }}
+              aria-label="Limpar todos os dígitos"
               className="h-14 text-xs font-bold text-pastel-pink-500 hover:bg-pastel-pink-50 rounded-2xl border border-transparent active:scale-95 flex items-center justify-center"
             >
               Limpar
             </button>
             <button
               onClick={() => handleNumberClick('0')}
+              aria-label="Dígito 0"
               className="h-14 bg-slate-50 hover:bg-pastel-purple-100 hover:text-pastel-purple-600 border border-slate-100 text-slate-600 font-extrabold text-lg rounded-2xl transition-all active:scale-95 flex items-center justify-center shadow-sm"
             >
               0
             </button>
             <button
               onClick={handleBackspace}
+              aria-label="Apagar último dígito"
               className="h-14 text-xs font-bold text-slate-500 hover:bg-slate-100 rounded-2xl border border-transparent active:scale-95 flex items-center justify-center"
             >
               Apagar
             </button>
           </div>
           
-          <div className="mt-5 text-center">
+          <div id="pin-demo-note" className="mt-5 text-center">
             <span className="text-[10px] text-slate-400 block">Demonstração: PIN padrão é <strong>1234</strong></span>
           </div>
         </div>

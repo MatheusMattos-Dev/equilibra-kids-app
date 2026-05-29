@@ -138,3 +138,30 @@ html, body {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+/* Utilitário Screen Reader Only (Acessibilidade) */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* Anel de foco acessível e visível global para navegação por teclado */
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[role="button"]:focus-visible,
+[role="tab"]:focus-visible,
+[role="checkbox"]:focus-visible {
+  outline: 3px solid var(--color-pastel-purple-500) !important;
+  outline-offset: 2px !important;
+  box-shadow: 0 0 0 4px rgba(158, 116, 214, 0.3) !important;
+}
