@@ -8,14 +8,14 @@ interface OfflineActivitiesProps {
 }
 
 const iconMap: Record<string, React.ReactNode> = {
-  smile: <Smile className="w-6 h-6" />,
-  palette: <Palette className="w-6 h-6" />,
-  droplet: <Droplet className="w-6 h-6" />,
-  compass: <Compass className="w-6 h-6" />,
-  book: <BookOpen className="w-6 h-6" />,
-  star: <Star className="w-6 h-6" />,
-  run: <Activity className="w-6 h-6" />,
-  clean: <Sparkles className="w-6 h-6" />
+  smile: <Smile className="w-8 h-8" />,
+  palette: <Palette className="w-8 h-8" />,
+  droplet: <Droplet className="w-8 h-8" />,
+  compass: <Compass className="w-8 h-8" />,
+  book: <BookOpen className="w-8 h-8" />,
+  star: <Star className="w-8 h-8" />,
+  run: <Activity className="w-8 h-8" />,
+  clean: <Sparkles className="w-8 h-8" />
 };
 
 const colorSchemes: Record<string, { cor: string; corTexto: string }> = {
@@ -118,13 +118,13 @@ export const OfflineActivities: React.FC<OfflineActivitiesProps> = ({ onComplete
 
               <div>
                 {/* Ícone & Recompensa */}
-                <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center justify-between mb-2 w-full">
                   <div className={`p-2 bg-white rounded-2xl ${scheme.corTexto} shadow-sm shrink-0`}>
                     {icon}
                   </div>
                   <div className="bg-white/80 border border-white text-xs font-black px-2.5 py-1 rounded-full flex items-center gap-1">
-                    <span className="text-pastel-yellow-500">★</span>
-                    <span className="text-slate-700">+{act.recompensa}</span>
+                    <Star size={20} className="text-pastel-yellow-500 fill-pastel-yellow-250 shrink-0" />
+                    <span className="text-slate-700 text-sm">+{act.recompensa}</span>
                   </div>
                 </div>
 
@@ -137,13 +137,13 @@ export const OfflineActivities: React.FC<OfflineActivitiesProps> = ({ onComplete
               </div>
 
               {/* Botão de Conclusão */}
-              <div className="mt-3.5 pt-2 border-t border-dashed border-slate-200/50 flex justify-end">
+              <div className="mt-3.5 pt-2 border-t border-dashed border-slate-200/50 flex justify-end w-full">
                 {isCompleted ? (
-                  <span className="text-emerald-500 text-xs font-black flex items-center gap-1">
+                  <span className="w-full text-center sm:text-right text-emerald-500 text-xs font-black flex items-center justify-center sm:justify-end gap-1">
                     <CheckCircle size={14} className="fill-emerald-50" /> Missão Concluída!
                   </span>
                 ) : (
-                  <span className={`text-xs font-black px-3.5 py-1 bg-white/90 rounded-full border shadow-sm ${scheme.corTexto} border-white active:scale-95 transition-transform`}>
+                  <span className={`w-full sm:w-auto text-center text-xs font-black px-3.5 py-1.5 bg-white/90 rounded-full border shadow-sm ${scheme.corTexto} border-white active:scale-95 transition-transform`}>
                     Quero Fazer! →
                   </span>
                 )}

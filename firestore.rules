@@ -1,0 +1,12 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Apenas o pai autenticado pode ler/escrever nos dados da sua própria família
+    match /families/{uid}/{document=**} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+  }
+}
+
+// Para publicar estas regras via terminal, execute:
+// firebase deploy --only firestore:rules

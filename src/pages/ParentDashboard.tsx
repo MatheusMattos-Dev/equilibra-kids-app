@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useScreenTime } from '../hooks/useScreenTime';
 import { Avatar } from '../components/Avatar';
 import { HealthAlertCard } from '../components/HealthAlertCard';
@@ -7,15 +8,25 @@ import {
   Square, ShieldAlert, Plus, Save, Clock, 
   TrendingUp, Sparkles, Check, Smartphone, ToggleLeft, ToggleRight,
   Trophy, Medal, Crown, Mail,
-  Palette, Compass, Droplet, BookOpen, Star, Trash, Smile
+  Palette, Compass, Droplet, BookOpen, Star, Trash, Smile,
+  AlertTriangle, X
 } from 'lucide-react';
 import { ChildInterface } from './ChildInterface';
+import { ParentPinModal } from '../components/ParentPinModal';
+import { useAuth } from '../hooks/useAuth';
+import { auth } from '../lib/firebase';
+import { useOnlineStatus } from '../hooks/useOnlineStatus';
+import { useRegisterSW } from 'virtual:pwa-register/react';
+import { usePushNotifications } from '../hooks/usePushNotifications';
 
-interface ParentDashboardProps {
-  onNavigate: (page: 'profile-selection' | 'child-mode') => void;
-}
-
-export const ParentDashboard: React.FC<ParentDashboardProps> = ({ onNavigate }) => {
+export const ParentDashboard: React.FC = () => {
+  const navigate = useNavigate();
+  const { signOut } = useAuth();
+  const isOnline = useOnlineStatus();
+  const {
+    needRefresh: [needRefresh, setNeedRefresh],
+    updateServiceWorker,
+  } = useRegisterSW();
   const {
     perfis,
     activeProfileId,
@@ -33,10 +44,22 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({ onNavigate }) 
     setActiveProfileId,
     emailConfig,
     atualizarEmailConfig,
+    notificationPreferences,
+    atualizarNotificationPreferences,
     quests,
     adicionarQuestCustomizada,
-    deletarQuestCustomizada
+    deletarQuestCustomizada,
+    dataLoading,
+    syncError
   } = useScreenTime();
+
+  const {
+    permissionStatus,
+    foregroundNotification,
+    clearForegroundNotification,
+    requestPermission,
+    isSupportedBrowser
+  } = usePushNotifications();
 
   // Estados locais da página
   const [activeTab, setActiveTab] = useState<'monitor' | 'alerts' | 'settings' | 'ranking' | 'digest'>('monitor');
@@ -44,6 +67,33 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({ onNavigate }) 
   const [splitView, setSplitView] = useState<boolean>(true); // Split view ativa por padrão para demonstração incrível!
   const [historyFilterId, setHistoryFilterId] = useState<string>('all');
   const [hoveredBarInfo, setHoveredBarInfo] = useState<{ childId: string; dayIdx: number; val: number } | null>(null);
+  
+  const [pinOpen, setPinOpen] = useState<boolean>(false);
+  const [pendingBlockId, setPendingBlockId] = useState<string | null>(null);
+
+  const handleLogout = async () => {
+    const confirm = window.confirm("Deseja realmente encerrar a sessão dos pais?");
+    if (confirm) {
+      try {
+        await signOut();
+        navigate('/');
+      } catch (err) {
+        alert("Erro ao deslogar.");
+      }
+    }
+  };
+
+  const handleBlockClick = (id: string) => {
+    setPendingBlockId(id);
+    setPinOpen(true);
+  };
+
+  const handlePinSuccess = () => {
+    if (pendingBlockId) {
+      bloquearRemoto(pendingBlockId);
+      setPendingBlockId(null);
+    }
+  };
   
   // Estados para configuração do E-mail
   const [emailInput, setEmailInput] = useState<string>(emailConfig.email);
@@ -77,6 +127,14 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({ onNavigate }) 
   const [newStartTime, setNewStartTime] = useState<string>('08:00');
   const [newEndTime, setNewEndTime] = useState<string>('20:00');
   const [showNewForm, setShowNewForm] = useState<boolean>(false);
+
+  // Agendamento de dias da semana
+  const [selectedDays, setSelectedDays] = useState<number[]>([0, 1, 2, 3, 4]); // Segunda a Sexta por padrão
+  const handleToggleDay = (dayIdx: number) => {
+    setSelectedDays(prev =>
+      prev.includes(dayIdx) ? prev.filter(d => d !== dayIdx) : [...prev, dayIdx].sort()
+    );
+  };
 
   // Estados para cadastro de nova missão customizada
   const [questTitle, setQuestTitle] = useState<string>('');
@@ -167,14 +225,54 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({ onNavigate }) 
     }
   };
 
+  if (dataLoading) {
+    return (
+      <div className="min-h-screen w-full flex flex-col items-center justify-center bg-radial-gradient p-6 font-kids">
+        <div className="flex flex-col items-center gap-4 animate-pop">
+          <div className="relative">
+            <div className="w-16 h-16 rounded-3xl bg-gradient-to-br from-pastel-purple-500 to-pastel-blue-500 flex items-center justify-center text-white font-black text-3xl shadow-lg rotate-6 animate-bounce">
+              E
+            </div>
+            <div className="absolute -top-1 -right-1 bg-pastel-yellow-400 text-white p-1 rounded-full shadow-sm animate-wiggle">
+              <Sparkles size={14} className="fill-pastel-yellow-200" />
+            </div>
+          </div>
+          <div className="text-center mt-2">
+            <h2 className="text-xl font-black text-slate-800 tracking-tight">
+              Equilibra<span className="text-pastel-green-500">Kids</span>
+            </h2>
+            <p className="text-xs text-slate-400 font-parents font-semibold mt-1 animate-pulse">
+              Sincronizando dados dos pais com a nuvem... ☁️
+            </p>
+          </div>
+          <div className="w-12 h-1.5 bg-slate-100 rounded-full overflow-hidden mt-2 border border-slate-200/50">
+            <div className="h-full bg-pastel-purple-500 rounded-full w-1/2 animate-[pulse_1.5s_ease-in-out_infinite]" style={{ animationDuration: '1s' }} />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 font-parents dark-mode-transition">
+      {!isOnline && (
+        <div className="bg-pastel-yellow-100 border-b border-pastel-yellow-200 text-pastel-yellow-700 text-xs font-bold text-center py-2 px-4 shadow-sm flex items-center justify-center gap-2 animate-pulse z-50">
+          <AlertTriangle size={14} className="stroke-[3]" />
+          <span>Modo offline — dados sincronizarão quando a conexão voltar</span>
+        </div>
+      )}
+      {syncError && (
+        <div className="bg-pastel-pink-500 text-white text-xs font-bold text-center py-2 px-4 shadow-sm flex items-center justify-center gap-2 animate-pulse z-50">
+          <ShieldAlert size={14} />
+          <span>{syncError} - Exibindo informações locais salvas offline</span>
+        </div>
+      )}
       
       {/* Top Header */}
       <header className="sticky top-0 z-30 bg-white border-b border-slate-100 px-6 py-4 flex flex-wrap items-center justify-between gap-4 shadow-sm">
         <div className="flex items-center gap-3">
           <button
-            onClick={() => onNavigate('profile-selection')}
+            onClick={() => navigate('/')}
             className="p-2 hover:bg-slate-100 rounded-xl transition-colors text-slate-500 hover:text-slate-800"
             title="Voltar para Seleção de Perfis"
           >
@@ -196,7 +294,7 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({ onNavigate }) 
         <nav 
           role="tablist" 
           aria-label="Abas do painel dos pais"
-          className="flex bg-slate-100 p-1 rounded-xl border border-slate-200/50"
+          className="flex overflow-x-auto whitespace-nowrap bg-slate-100 p-1 rounded-xl border border-slate-200/50 no-scrollbar max-w-full shrink-0"
         >
           <button
             id="tab-monitor"
@@ -204,12 +302,12 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({ onNavigate }) 
             aria-selected={activeTab === 'monitor'}
             aria-controls="panel-monitor"
             onClick={() => setActiveTab('monitor')}
-            className={`flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-lg transition-all ${
+            className={`flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-lg transition-all shrink-0 ${
               activeTab === 'monitor' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-800'
             }`}
           >
-            <Activity size={14} />
-            Monitoramento
+            <Activity size={14} className="shrink-0" />
+            <span className="hidden lg:inline">Monitor</span>
           </button>
           <button
             id="tab-alerts"
@@ -217,12 +315,12 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({ onNavigate }) 
             aria-selected={activeTab === 'alerts'}
             aria-controls="panel-alerts"
             onClick={() => setActiveTab('alerts')}
-            className={`flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-lg transition-all relative ${
+            className={`flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-lg transition-all relative shrink-0 ${
               activeTab === 'alerts' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-800'
             }`}
           >
-            <Bell size={14} />
-            Saúde & Avisos
+            <Bell size={14} className="shrink-0" />
+            <span className="hidden lg:inline">Saúde & Alertas</span>
             {totalAlerts > 0 && (
               <span className="absolute -top-1 -right-1 bg-pastel-pink-500 text-white text-[9px] font-extrabold w-4 h-4 rounded-full flex items-center justify-center border border-white animate-pulse">
                 {totalAlerts}
@@ -235,12 +333,12 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({ onNavigate }) 
             aria-selected={activeTab === 'settings'}
             aria-controls="panel-settings"
             onClick={() => setActiveTab('settings')}
-            className={`flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-lg transition-all ${
+            className={`flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-lg transition-all shrink-0 ${
               activeTab === 'settings' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-800'
             }`}
           >
-            <Settings size={14} />
-            Ajustar Limites
+            <Settings size={14} className="shrink-0" />
+            <span className="hidden lg:inline">Limites</span>
           </button>
           <button
             id="tab-ranking"
@@ -248,12 +346,12 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({ onNavigate }) 
             aria-selected={activeTab === 'ranking'}
             aria-controls="panel-ranking"
             onClick={() => setActiveTab('ranking')}
-            className={`flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-lg transition-all ${
+            className={`flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-lg transition-all shrink-0 ${
               activeTab === 'ranking' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-800'
             }`}
           >
-            <Trophy size={14} className="text-pastel-yellow-500 fill-pastel-yellow-200" />
-            Ranking de Missões
+            <Trophy size={14} className="text-pastel-yellow-500 fill-pastel-yellow-200 shrink-0" />
+            <span className="hidden lg:inline">Ranking</span>
           </button>
           <button
             id="tab-digest"
@@ -261,34 +359,66 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({ onNavigate }) 
             aria-selected={activeTab === 'digest'}
             aria-controls="panel-digest"
             onClick={() => setActiveTab('digest')}
-            className={`flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-lg transition-all ${
+            className={`flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-lg transition-all shrink-0 ${
               activeTab === 'digest' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-800'
             }`}
           >
-            <Mail size={14} className="text-pastel-blue-500" />
-            Relatório por E-mail
+            <Mail size={14} className="text-pastel-blue-500 shrink-0" />
+            <span className="hidden lg:inline">E-mail</span>
           </button>
         </nav>
 
-        {/* Toggle de Modo Lado a Lado (Demonstração - Oculto em Telas Responsivas Menores) */}
-        <button
-          onClick={() => setSplitView(!splitView)}
-          className={`hidden xl:inline-flex items-center gap-2 px-4 py-2 text-xs font-black rounded-xl border-2 transition-all shadow-sm active:scale-95 ${
-            splitView 
-              ? 'bg-pastel-purple-50 border-pastel-purple-300 text-pastel-purple-600' 
-              : 'bg-white border-slate-200 text-slate-500 hover:text-slate-800'
-          }`}
-        >
-          <Smartphone size={14} />
-          {splitView ? 'Desativar Lado a Lado' : 'Simular Lado a Lado 📱'}
-        </button>
+        <div className="flex items-center gap-4">
+          {/* Toggle de Modo Lado a Lado (Demonstração - Oculto em Telas Responsivas Menores) */}
+          <button
+            onClick={() => setSplitView(!splitView)}
+            className={`hidden xl:inline-flex items-center gap-2 px-4 py-2 text-xs font-black rounded-xl border-2 transition-all shadow-sm active:scale-95 ${
+              splitView 
+                ? 'bg-pastel-purple-50 border-pastel-purple-300 text-pastel-purple-600' 
+                : 'bg-white border-slate-200 text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            <Smartphone size={14} />
+            {splitView ? 'Desativar Lado a Lado' : 'Simular Lado a Lado 📱'}
+          </button>
+
+          {/* Dados do Responsável e Botão de Logout */}
+          <div className="flex items-center gap-3 pl-3 border-l border-slate-200">
+            {auth.currentUser?.photoURL ? (
+              <img 
+                src={auth.currentUser.photoURL} 
+                alt={auth.currentUser.displayName || 'Responsável'} 
+                className="w-8 h-8 rounded-full border border-slate-200 object-cover"
+                referrerPolicy="no-referrer"
+              />
+            ) : (
+              <div className="w-8 h-8 rounded-full bg-pastel-purple-100 text-pastel-purple-600 flex items-center justify-center font-bold text-sm border border-pastel-purple-200 uppercase">
+                {(auth.currentUser?.displayName || auth.currentUser?.email || 'P')[0]}
+              </div>
+            )}
+            <div className="hidden xl:block text-left">
+              <span className="text-xs font-bold text-slate-700 block max-w-[120px] truncate leading-tight">
+                {auth.currentUser?.displayName || 'Responsável'}
+              </span>
+              <span className="text-[9px] text-slate-400 font-semibold block leading-none truncate max-w-[120px]">
+                {auth.currentUser?.email}
+              </span>
+            </div>
+            <button
+              onClick={handleLogout}
+              className="px-3 py-1.5 bg-pastel-pink-50 hover:bg-pastel-pink-100 text-pastel-pink-500 hover:text-pastel-pink-600 font-bold text-xs rounded-xl border border-pastel-pink-200 transition-colors active:scale-95"
+            >
+              Sair
+            </button>
+          </div>
+        </div>
       </header>
 
       {/* Main Flex Layout */}
       <div className={`p-6 max-w-[1600px] mx-auto flex flex-col ${splitView ? 'xl:flex-row gap-8' : 'gap-6'}`}>
         
-        {/* COLUNA ESQUERDA: CONTROLE DOS PAIS (flex-1 se SplitView, total se não) */}
-        <main className={`${splitView ? 'xl:flex-1' : 'w-full'} flex flex-col gap-6 animate-pop`}>
+        {/* COLUNA ESQUERDA: CONTROLE DOS PAIS */}
+        <main className={`w-full ${splitView ? 'xl:flex-1' : ''} flex flex-col gap-6 animate-pop`}>
           
           {/* Card Resumo Rápido */}
           <section className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -370,7 +500,7 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({ onNavigate }) 
                   </button>
                 </div>
 
-                <div className="flex flex-col gap-4">
+                <div className={`grid grid-cols-1 sm:grid-cols-2 ${splitView ? 'lg:grid-cols-3 xl:grid-cols-2 2xl:grid-cols-3' : 'lg:grid-cols-3 xl:grid-cols-3 2xl:grid-cols-4'} gap-4`}>
                   {perfis.map((kid) => {
                     const limiteSegundos = kid.limiteDiario * 60;
                     const restanteSegundos = Math.max(0, limiteSegundos - kid.tempoUsadoHoje);
@@ -392,130 +522,122 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({ onNavigate }) 
                             : 'bg-white border-slate-100 hover:border-slate-200'
                         }`}
                       >
-                        {/* Linha Principal (Info + Progresso + Controles) */}
-                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 w-full">
-                          
-                          {/* Kid Info */}
-                          <div className="flex items-center gap-3.5 shrink-0">
-                            <div className="relative">
-                              <Avatar type={kid.avatar} className="w-14 h-14" />
-                              {kid.status === 'online' && (
-                                <span className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-pastel-green-500 border-2 border-white rounded-full animate-ping" />
-                              )}
+                        {/* Linha 1: Informações da Criança (Avatar, Nome, Status e Janela de Horário) */}
+                        <div className="flex items-center gap-3 w-full pb-3 border-b border-slate-100">
+                          <div className="relative">
+                            <Avatar type={kid.avatar} className="w-12 h-12" />
+                            {kid.status === 'online' && (
+                              <span className="absolute bottom-0 right-0 w-3 h-3 bg-pastel-green-500 border-2 border-white rounded-full animate-ping" />
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <h4 className="font-extrabold text-slate-800 text-sm truncate">{kid.nome}</h4>
+                              <span className={`text-[8px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full ${
+                                kid.status === 'online' ? 'bg-pastel-green-100 text-pastel-green-600' :
+                                kid.status === 'pausado' ? 'bg-pastel-yellow-100 text-pastel-yellow-700' :
+                                'bg-pastel-purple-100 text-pastel-purple-600'
+                              }`}>
+                                {kid.status === 'online' ? 'Online' :
+                                 kid.status === 'pausado' ? 'Pausado' : 'Esgotado 💤'}
+                              </span>
                             </div>
-                            <div>
-                              <div className="flex items-center gap-2">
-                                <h4 className="font-extrabold text-slate-800 text-base">{kid.nome}</h4>
-                                <span className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full ${
-                                  kid.status === 'online' ? 'bg-pastel-green-100 text-pastel-green-600' :
-                                  kid.status === 'pausado' ? 'bg-pastel-yellow-100 text-pastel-yellow-700' :
-                                  'bg-pastel-purple-100 text-pastel-purple-600'
-                                }`}>
-                                  {kid.status === 'online' ? 'Online' :
-                                   kid.status === 'pausado' ? 'Pausado' : 'Esgotado 💤'}
-                                </span>
-                              </div>
-                              <div className="text-[10px] text-slate-400 font-semibold font-parents mt-1 flex flex-col gap-0.5">
-                                <span>Idade: {kid.idade} anos • Dormir às {kid.limiteNoturno}</span>
-                                <span className="text-pastel-blue-600 font-black text-[9px] uppercase tracking-wider mt-0.5">
-                                  Janela: {kid.horarioInicioPermitido} às {kid.horarioFimPermitido}
-                                </span>
-
-                              </div>
+                            <div className="text-[10px] text-slate-400 font-semibold font-parents mt-0.5 flex flex-col gap-0.5">
+                              <span>{kid.idade} anos • Dormir às {kid.limiteNoturno}</span>
+                              <span className="text-pastel-blue-600 font-black text-[9px] uppercase tracking-wider">
+                                Janela: {kid.horarioInicioPermitido} - {kid.horarioFimPermitido}
+                              </span>
                             </div>
                           </div>
+                        </div>
 
-                          {/* Barra de Progresso do Tempo */}
-                          <div className="flex-1 w-full max-w-xs sm:mx-4">
-                            <div className="flex items-center justify-between text-xs text-slate-500 mb-1.5 font-bold">
-                              <span className="font-medium font-parents">Progresso Geral</span>
-                              <span>{usadoMinutos}m / {kid.limiteDiario}m</span>
-                            </div>
-                            <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden border border-slate-200/50">
-                              <div 
-                                className={`h-full ${progressBarColor} transition-all duration-500`}
-                                style={{ width: `${progressPercent}%` }}
-                              />
-                            </div>
-                            <span className="text-[9px] text-slate-400 block mt-1 font-semibold text-right">
-                              {kid.status === 'bloqueado' ? 'Tempo diário esgotado' : `Restam ${restanteMinutos} minutos`}
-                            </span>
+                        {/* Linha 2: Barra de Progresso do Tempo de Tela */}
+                        <div className="w-full">
+                          <div className="flex items-center justify-between text-xs text-slate-500 mb-1.5 font-bold">
+                            <span className="font-medium font-parents">Uso de Tela</span>
+                            <span>{usadoMinutos}m / {kid.limiteDiario}m</span>
                           </div>
+                          <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden border border-slate-200/50">
+                            <div 
+                              className={`h-full ${progressBarColor} transition-all duration-500`}
+                              style={{ width: `${progressPercent}%` }}
+                            />
+                          </div>
+                          <span className="text-[9px] text-slate-400 block mt-1 font-semibold text-right">
+                            {kid.status === 'bloqueado' ? 'Tempo diário esgotado' : `Restam ${restanteMinutos} minutos`}
+                          </span>
+                        </div>
 
-                          {/* Ações de Controle Remoto */}
-                          <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 shrink-0 w-full sm:w-auto justify-end border-t sm:border-t-0 pt-3 sm:pt-0">
-                            {/* Botão Entregar Celular para a Criança */}
-                            <button
-                              onClick={() => {
-                                selecionarPerfil(kid.id);
-                                onNavigate('child-mode');
-                              }}
-                              disabled={kid.status === 'bloqueado'}
-                              className="flex items-center gap-1.5 px-3 py-2 bg-pastel-green-500 hover:bg-pastel-green-600 text-white font-extrabold text-xs rounded-xl shadow-sm hover:shadow active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed transition-all mr-1"
-                              title="Iniciar Sessão Segura e Entregar Celular para a Criança"
-                              aria-label={`Entregar celular e iniciar sessão segura de ${kid.nome}`}
-                            >
-                              <Play size={12} fill="currentColor" />
-                              Entregar 📱
-                            </button>
+                        {/* Linha 3: Controles Rápidos do Dispositivo */}
+                        <div className="flex flex-col gap-2 w-full pt-3 border-t border-slate-100">
+                          {/* Entregar dispositivo */}
+                          <button
+                            onClick={() => {
+                              selecionarPerfil(kid.id);
+                              navigate('/crianca');
+                            }}
+                            disabled={kid.status === 'bloqueado'}
+                            className="w-full flex items-center justify-center gap-1.5 py-2 bg-pastel-green-500 hover:bg-pastel-green-600 text-white font-extrabold text-xs rounded-xl shadow-sm hover:shadow active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                            title="Iniciar Sessão Segura e Entregar Celular para a Criança"
+                          >
+                            <Play size={12} fill="currentColor" />
+                            Entregar Celular 📱
+                          </button>
 
+                          <div className="flex gap-2">
+                            {/* Pausar / Retomar */}
                             {kid.status === 'online' ? (
                               <button
                                 onClick={() => pausarTempoRemoto(kid.id)}
-                                className="p-2.5 bg-pastel-yellow-50 hover:bg-pastel-yellow-100 text-pastel-yellow-600 rounded-xl border border-pastel-yellow-200 transition-colors"
-                                title="Pausar Sessão Temporariamente"
-                                aria-label={`Pausar tempo limite de ${kid.nome}`}
+                                className="flex-1 py-2 bg-pastel-yellow-50 hover:bg-pastel-yellow-100 text-pastel-yellow-600 rounded-xl border border-pastel-yellow-200 transition-colors flex items-center justify-center text-xs font-bold"
+                                title="Pausar Sessão"
                               >
-                                <Pause size={15} />
+                                <Pause size={13} className="mr-1" /> Pausar
                               </button>
                             ) : (
                               <button
                                 onClick={() => iniciarTempoRemoto(kid.id)}
                                 disabled={kid.status === 'bloqueado'}
-                                className="p-2.5 bg-pastel-green-50 hover:bg-pastel-green-100 text-pastel-green-600 disabled:opacity-30 disabled:cursor-not-allowed rounded-xl border border-pastel-green-200 transition-colors"
-                                title="Retomar Sessão da Criança"
-                                aria-label={`Retomar tempo limite de ${kid.nome}`}
+                                className="flex-1 py-2 bg-pastel-green-50 hover:bg-pastel-green-100 text-pastel-green-600 disabled:opacity-30 disabled:cursor-not-allowed rounded-xl border border-pastel-green-200 transition-colors flex items-center justify-center text-xs font-bold"
+                                title="Retomar Sessão"
                               >
-                                <Play size={15} />
+                                <Play size={13} className="mr-1" /> Retomar
                               </button>
                             )}
 
+                            {/* Bloquear */}
                             <button
-                              onClick={() => bloquearRemoto(kid.id)}
+                              onClick={() => handleBlockClick(kid.id)}
                               disabled={kid.status === 'bloqueado'}
-                              className="p-2.5 bg-pastel-pink-50 hover:bg-pastel-pink-100 text-pastel-pink-500 disabled:opacity-30 disabled:cursor-not-allowed rounded-xl border border-pastel-pink-200 transition-colors"
+                              className="flex-1 py-2 bg-pastel-pink-50 hover:bg-pastel-pink-100 text-pastel-pink-500 disabled:opacity-30 disabled:cursor-not-allowed rounded-xl border border-pastel-pink-200 transition-colors flex items-center justify-center text-xs font-bold"
                               title="Bloquear Dispositivo Imediatamente"
-                              aria-label={`Bloquear uso de telas de ${kid.nome} imediatamente`}
                             >
-                              <Square size={14} fill="currentColor" />
-                            </button>
-
-                            <button
-                              onClick={() => adicionarTempoRemoto(kid.id, 15)}
-                              className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-xs rounded-xl border border-slate-200 active:scale-95 transition-all"
-                              title="Presentear Criança com +15 Minutos"
-                              aria-label={`Adicionar mais 15 minutos de bônus para ${kid.nome}`}
-                            >
-                              +15 min
+                              <Square size={11} fill="currentColor" className="mr-1" /> Bloquear
                             </button>
                           </div>
 
+                          {/* Presentear +15 minutos */}
+                          <button
+                            onClick={() => adicionarTempoRemoto(kid.id, 15)}
+                            className="w-full py-2 bg-slate-50 hover:bg-slate-100 text-slate-700 font-extrabold text-xs rounded-xl border border-slate-200 active:scale-95 transition-all flex items-center justify-center gap-1"
+                            title="Presentear Criança com +15 Minutos"
+                          >
+                            +15 Minutos Extra ⚡
+                          </button>
                         </div>
 
-                        {/* Linha Secundária: Banner de Pedido de Tempo Extra (Linguagem Acolhedora) */}
+                        {/* Linha 4: Pedido de tempo extra recebido */}
                         {kid.pediuMaisTempo && (
-                          <div className="w-full flex flex-col sm:flex-row items-center justify-between p-3.5 bg-pastel-purple-50 border border-pastel-purple-200 rounded-2xl animate-pulse gap-3.5 mt-1">
-                            <div className="flex items-center gap-2">
-                              <span className="bg-pastel-purple-100 text-pastel-purple-700 text-[10px] font-black uppercase px-2.5 py-1 rounded-lg shrink-0">📨 Pedido</span>
-                              <span className="text-slate-700 text-xs font-semibold font-parents leading-relaxed">
-                                <strong>{kid.nome}</strong> está pedindo mais 15 minutinhos na tela de bloqueio.
+                          <div className="w-full flex flex-col p-3 bg-pastel-purple-50 border border-pastel-purple-200 rounded-xl gap-2 mt-1 animate-pulse">
+                            <div className="flex items-center gap-1.5">
+                              <span className="bg-pastel-purple-100 text-pastel-purple-700 text-[8px] font-black uppercase px-2 py-0.5 rounded">📨 Pedido</span>
+                              <span className="text-slate-700 text-[10px] font-bold font-parents">
+                                Pedido de +15 minutos recebido.
                               </span>
                             </div>
                             <button
                               onClick={() => aprovarMaisTempo(kid.id)}
-                              className="w-full sm:w-auto px-4 py-2 bg-pastel-purple-500 hover:bg-pastel-purple-600 text-white font-black text-xs rounded-xl shadow-md border-b-4 border-pastel-purple-700 active:scale-95 transition-all shrink-0"
-                              title="Aprovar tempo extra solicitado"
-                              aria-label={`Aprovar mais 15 minutos adicionais solicitados por ${kid.nome}`}
+                              className="w-full py-1.5 bg-pastel-purple-500 hover:bg-pastel-purple-600 text-white font-black text-xs rounded-lg shadow-md border-b-2 border-pastel-purple-700 active:scale-95 transition-all"
                             >
                               Aprovar +15 min! 👍
                             </button>
@@ -673,7 +795,7 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({ onNavigate }) 
                   
                   {/* Tooltip Flutuante Interativo */}
                   {hoveredBarInfo && (
-                    <div className="absolute top-2.5 left-4 bg-slate-900/95 text-white text-[11px] py-1.5 px-3.5 rounded-xl shadow-lg z-20 flex items-center gap-1.5 font-parents border border-slate-700/50 animate-fade-in">
+                    <div className="absolute top-2.5 left-4 right-4 md:right-auto max-w-sm md:max-w-none bg-slate-900/95 text-white text-[11px] py-1.5 px-3.5 rounded-xl shadow-lg z-20 flex items-center gap-1.5 font-parents border border-slate-700/50 animate-fade-in">
                       <span className="text-pastel-yellow-400 font-black">★</span>
                       <span>
                         <strong>{perfis.find(p => p.id === hoveredBarInfo.childId)?.nome}</strong>: {hoveredBarInfo.val} min em {['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'][hoveredBarInfo.dayIdx]}
@@ -704,6 +826,7 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({ onNavigate }) 
                     role="img" 
                     aria-label={getChartAriaLabel()} 
                     className="w-full h-44" 
+                    width="100%"
                     viewBox="0 0 600 180" 
                     fill="none" 
                     xmlns="http://www.w3.org/2000/svg"
@@ -1063,39 +1186,216 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({ onNavigate }) 
               id="panel-alerts" 
               aria-labelledby="tab-alerts" 
               tabIndex={0} 
-              className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex flex-col gap-6 focus-visible:outline-none"
+              className="focus-visible:outline-none flex flex-col gap-6"
             >
-              <div>
-                <h3 className="text-base font-extrabold text-slate-800">Alertas de Saúde e Prejuízos Cognitivos</h3>
-                <p className="text-xs text-slate-400 font-semibold mt-1">
-                  Nossos algoritmos analisam comportamentos incomuns para alertar possíveis riscos no sono, foco e desenvolvimento neurológico infantil.
-                </p>
-              </div>
+              {/* SEÇÃO SUPERIOR: CONFIGURAÇÕES DE NOTIFICAÇÕES (Lado a lado em telas médias/grandes) */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-pop">
+                  
+                  {/* Card Status do Canal de Notificação */}
+                  <section className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm flex flex-col gap-4 font-parents">
+                    <div>
+                      <h4 className="text-xs font-black text-slate-400 uppercase tracking-wider">Canal de Notificações</h4>
+                      <p className="text-[11px] text-slate-500 font-semibold mt-1">
+                        Status de recebimento dos avisos push no seu aparelho.
+                      </p>
+                    </div>
 
-              {alertas.length === 0 ? (
-                <div className="text-center py-10 bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
-                  <div className="text-pastel-green-500 inline-block p-4 bg-pastel-green-50 rounded-full mb-3">
-                    <Check size={28} />
-                  </div>
-                  <h4 className="font-bold text-slate-700">Tudo equilibrado por aqui!</h4>
-                  <p className="text-xs text-slate-400 mt-1 max-w-xs mx-auto">
-                    Nenhum comportamento fora dos limites de saúde infantil foi detectado nas últimas semanas. Continue com o bom trabalho!
-                  </p>
+                    {isSupportedBrowser ? (
+                      <>
+                        {permissionStatus === 'default' && (
+                          <div className="p-4 bg-white/75 border border-pastel-purple-200 rounded-2xl flex flex-col gap-3 text-center items-center">
+                            <div className="p-2.5 bg-pastel-purple-100/50 text-pastel-purple-500 rounded-xl">
+                              <Bell size={20} className="animate-wiggle text-pastel-purple-500 fill-pastel-purple-100" />
+                            </div>
+                            <div>
+                              <h5 className="text-xs font-black text-slate-800">Alertas Desativados</h5>
+                              <p className="text-[10px] text-slate-500 font-semibold mt-1 leading-normal">
+                                Ative para receber os avisos mesmo com o app fechado.
+                              </p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={requestPermission}
+                              className="w-full mt-1 py-2 bg-pastel-purple-100 hover:bg-pastel-purple-200 text-pastel-purple-700 font-black text-xs rounded-xl active:scale-95 transition-all duration-200 shrink-0 cursor-pointer flex items-center justify-center gap-1.5"
+                            >
+                              <Bell size={13} className="fill-pastel-purple-700/10" />
+                              <span>Ativar Notificações</span>
+                            </button>
+                          </div>
+                        )}
+
+                        {permissionStatus === 'denied' && (
+                          <div className="p-4 bg-pastel-pink-50 border border-pastel-pink-200 rounded-2xl flex flex-col gap-3 text-center items-center">
+                            <div className="p-2.5 bg-pastel-pink-100/50 text-pastel-pink-500 rounded-xl">
+                              <AlertTriangle size={20} className="animate-pulse" />
+                            </div>
+                            <div>
+                              <h5 className="text-xs font-black text-slate-800">Acesso Bloqueado</h5>
+                              <p className="text-[10px] text-slate-500 font-semibold mt-1 leading-normal">
+                                Permita as notificações nas configurações do navegador (clique no cadeado 🔒).
+                              </p>
+                            </div>
+                          </div>
+                        )}
+
+                        {permissionStatus === 'granted' && (
+                          <div className="p-4 bg-pastel-green-50/50 border border-pastel-green-200 rounded-2xl flex flex-col gap-2 items-center text-center">
+                            <div className="p-2 bg-pastel-green-100 text-pastel-green-600 rounded-full">
+                              <Check size={18} className="stroke-[3]" />
+                            </div>
+                            <div>
+                              <h5 className="text-xs font-black text-slate-800">Notificações Ativas!</h5>
+                              <p className="text-[10px] text-pastel-green-600 font-bold mt-0.5">
+                                Canal de push configurado e online.
+                              </p>
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-center text-xs text-slate-400 font-semibold">
+                        Navegador incompatível com notificações push.
+                      </div>
+                    )}
+                  </section>
+
+                  {/* Card Preferências de Alertas */}
+                  <section className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm flex flex-col gap-4 font-parents">
+                    <div>
+                      <h4 className="text-xs font-black text-slate-400 uppercase tracking-wider">Tipos de Avisos</h4>
+                      <p className="text-[11px] text-slate-500 font-semibold mt-1">
+                        Selecione quais alertas deseja receber.
+                      </p>
+                    </div>
+
+                    <div className="flex flex-col gap-2.5">
+                      <div className="flex items-center justify-between p-2.5 bg-slate-50/50 rounded-xl border border-slate-100/50">
+                        <div>
+                          <span className="text-xs font-bold text-slate-700 block">Restam 15 Minutos</span>
+                          <span className="text-[9px] text-slate-400 font-semibold leading-tight block mt-0.5">Alerta de aproximação do limite.</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => atualizarNotificationPreferences({
+                            ...notificationPreferences,
+                            warnings15Min: !notificationPreferences.warnings15Min
+                          })}
+                          className="transition-transform active:scale-95 shrink-0 cursor-pointer"
+                          aria-label="Alternar alerta de 15 minutos"
+                        >
+                          {notificationPreferences.warnings15Min ? (
+                            <ToggleRight size={34} className="text-pastel-purple-500 fill-pastel-purple-100" />
+                          ) : (
+                            <ToggleLeft size={34} className="text-slate-300" />
+                          )}
+                        </button>
+                      </div>
+
+                      <div className="flex items-center justify-between p-2.5 bg-slate-50/50 rounded-xl border border-slate-100/50">
+                        <div>
+                          <span className="text-xs font-bold text-slate-700 block">Restam 5 Minutos</span>
+                          <span className="text-[9px] text-slate-400 font-semibold leading-tight block mt-0.5">Aviso final de transição.</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => atualizarNotificationPreferences({
+                            ...notificationPreferences,
+                            warnings5Min: !notificationPreferences.warnings5Min
+                          })}
+                          className="transition-transform active:scale-95 shrink-0 cursor-pointer"
+                          aria-label="Alternar alerta de 5 minutos"
+                        >
+                          {notificationPreferences.warnings5Min ? (
+                            <ToggleRight size={34} className="text-pastel-purple-500 fill-pastel-purple-100" />
+                          ) : (
+                            <ToggleLeft size={34} className="text-slate-300" />
+                          )}
+                        </button>
+                      </div>
+
+                      <div className="flex items-center justify-between p-2.5 bg-slate-50/50 rounded-xl border border-slate-100/50">
+                        <div>
+                          <span className="text-xs font-bold text-slate-700 block">Tempo Esgotado</span>
+                          <span className="text-[9px] text-slate-400 font-semibold leading-tight block mt-0.5">Dispositivo foi bloqueado.</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => atualizarNotificationPreferences({
+                            ...notificationPreferences,
+                            warningsEnd: !notificationPreferences.warningsEnd
+                          })}
+                          className="transition-transform active:scale-95 shrink-0 cursor-pointer"
+                          aria-label="Alternar alerta de tempo esgotado"
+                        >
+                          {notificationPreferences.warningsEnd ? (
+                            <ToggleRight size={34} className="text-pastel-purple-500 fill-pastel-purple-100" />
+                          ) : (
+                            <ToggleLeft size={34} className="text-slate-300" />
+                          )}
+                        </button>
+                      </div>
+
+                      <div className="flex items-center justify-between p-2.5 bg-slate-50/50 rounded-xl border border-slate-100/50">
+                        <div>
+                          <span className="text-xs font-bold text-slate-700 block">Alertas de Saúde</span>
+                          <span className="text-[9px] text-slate-400 font-semibold leading-tight block mt-0.5">Uso noturno ou picos de uso.</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => atualizarNotificationPreferences({
+                            ...notificationPreferences,
+                            healthAlerts: !notificationPreferences.healthAlerts
+                          })}
+                          className="transition-transform active:scale-95 shrink-0 cursor-pointer"
+                          aria-label="Alternar alertas pediátricos de saúde"
+                        >
+                          {notificationPreferences.healthAlerts ? (
+                            <ToggleRight size={34} className="text-pastel-purple-500 fill-pastel-purple-100" />
+                          ) : (
+                            <ToggleLeft size={34} className="text-slate-300" />
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  </section>
                 </div>
-              ) : (
-                <div className="flex flex-col gap-4">
-                  {[...alertas]
-                    .sort((a, b) => {
-                      const priority = { critico: 4, preocupante: 3, alerta: 2, evolucao: 1 };
-                      return (priority[b.gravidade] || 0) - (priority[a.gravidade] || 0);
-                    })
-                    .map((alert) => (
-                      <HealthAlertCard key={alert.id} alerta={alert} />
-                    ))}
+
+                {/* SEÇÃO INFERIOR: DIAGNÓSTICOS E ALERTAS (LARGURA TOTAL) */}
+                <div className="w-full flex flex-col gap-6">
+                  <section className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex flex-col gap-5">
+                    <div>
+                      <h3 className="text-base font-extrabold text-slate-800">Alertas de Saúde e Prejuízos Cognitivos</h3>
+                      <p className="text-xs text-slate-400 font-semibold mt-1">
+                        Nossos algoritmos analisam comportamentos incomuns para alertar possíveis riscos no sono, foco e desenvolvimento neurológico infantil.
+                      </p>
+                    </div>
+
+                    {alertas.length === 0 ? (
+                      <div className="text-center py-12 bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
+                        <div className="text-pastel-green-500 inline-block p-4 bg-pastel-green-50 rounded-full mb-3">
+                          <Check size={28} />
+                        </div>
+                        <h4 className="font-bold text-slate-700">Tudo equilibrado por aqui!</h4>
+                        <p className="text-xs text-slate-400 mt-1 max-w-xs mx-auto">
+                          Nenhum comportamento fora dos limites de saúde infantil foi detectado nas últimas semanas. Continue com o bom trabalho!
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col gap-4">
+                        {[...alertas]
+                          .sort((a, b) => {
+                            const priority = { critico: 4, preocupante: 3, alerta: 2, evolucao: 1 };
+                            return (priority[b.gravidade] || 0) - (priority[a.gravidade] || 0);
+                          })
+                          .map((alert) => (
+                            <HealthAlertCard key={alert.id} alerta={alert} />
+                          ))}
+                      </div>
+                    )}
+                  </section>
                 </div>
-              )}
-            </div>
-          )}
+              </div>
+            )}
 
           {/* TAB 3: CONFIGURAÇÃO DE LIMITES */}
           {activeTab === 'settings' && (
@@ -1150,6 +1450,30 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({ onNavigate }) 
                            </div>
                          </div>
 
+
+                        <div>
+                          <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">Dias com Limite Ativo</label>
+                          <div className="grid grid-cols-7 gap-1">
+                            {['S', 'T', 'Q', 'Q', 'S', 'S', 'D'].map((day, dIdx) => {
+                              const isSelected = selectedDays.includes(dIdx);
+                              return (
+                                <button
+                                  key={dIdx}
+                                  type="button"
+                                  onClick={() => handleToggleDay(dIdx)}
+                                  className={`h-11 w-full rounded-xl text-xs font-black transition-all flex items-center justify-center border ${
+                                    isSelected 
+                                      ? 'bg-pastel-purple-500 border-pastel-purple-600 text-white shadow-xs' 
+                                      : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100'
+                                  }`}
+                                  title={`Alternar limite para ${['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'][dIdx]}`}
+                                >
+                                  {day}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
 
                         <div>
                           <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">Horário de Repouso (Toque de Recolher)</label>
@@ -1247,9 +1571,9 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({ onNavigate }) 
                   </p>
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-8">
                   {/* Formulário Nova Missão (col-span-5) */}
-                  <form onSubmit={handleCreateQuest} className="lg:col-span-5 flex flex-col gap-4 border-b lg:border-b-0 lg:border-r border-slate-100 pb-6 lg:pb-0 lg:pr-6">
+                  <form onSubmit={handleCreateQuest} className="md:col-span-5 flex flex-col gap-4 border-b md:border-b-0 md:border-r border-slate-100 pb-6 md:pb-0 md:pr-6">
                     <h4 className="text-xs font-black text-slate-400 uppercase tracking-wider">Nova Missão Personalizada</h4>
                     
                     <div>
@@ -1338,7 +1662,7 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({ onNavigate }) 
                   </form>
 
                   {/* Lista de Missões Ativas (col-span-7) */}
-                  <div className="lg:col-span-7 flex flex-col gap-4">
+                  <div className="md:col-span-7 flex flex-col gap-4">
                     <div className="flex items-center justify-between">
                       <h4 className="text-xs font-black text-slate-400 uppercase tracking-wider">Missões Ativas na Casa</h4>
                       <span className="text-[9px] bg-slate-100 text-slate-500 font-extrabold px-2 py-0.5 rounded-md border border-slate-200">
@@ -1447,20 +1771,20 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({ onNavigate }) 
 
                 return (
                   <div className="w-full bg-slate-50/50 p-6 rounded-2xl border border-slate-100/80 my-2">
-                    <div className="flex items-end justify-center gap-2 sm:gap-6 md:gap-10 h-60 max-w-lg mx-auto relative select-none pb-2">
+                    <div className="flex items-end justify-center gap-1.5 sm:gap-6 md:gap-10 h-56 sm:h-64 max-w-lg mx-auto relative select-none pb-2">
                       
                       {/* 2º Lugar */}
                       {segundo && (
                         <div className="flex flex-col items-center animate-pop" style={{ animationDelay: '0.1s' }}>
                           <div className="relative mb-2">
-                            <Avatar type={segundo.avatar} className="w-14 h-14 sm:w-16 sm:h-16 hover:rotate-3 transition-transform" />
+                            <Avatar type={segundo.avatar} className="w-11 h-11 sm:w-16 sm:h-16 hover:rotate-3 transition-transform" />
                             <span className="absolute -top-1 -right-1 bg-slate-300 text-slate-700 text-[10px] font-black w-5.5 h-5.5 rounded-full flex items-center justify-center border-2 border-white shadow-md">
                               2º
                             </span>
                           </div>
                           <span className="text-xs font-black text-slate-700 font-kids truncate max-w-[80px]">{segundo.nome}</span>
                           <span className="text-[10px] text-pastel-yellow-600 font-black mb-1 font-parents">★ {segundo.estrelasAcumuladas} estrelas</span>
-                          <div className="w-16 sm:w-20 bg-gradient-to-t from-slate-200 to-slate-100 border-t-4 border-slate-300 h-20 rounded-t-2xl shadow-sm flex items-center justify-center">
+                          <div className="w-14 sm:w-20 bg-gradient-to-t from-slate-200 to-slate-100 border-t-4 border-slate-300 h-14 sm:h-16 rounded-t-2xl shadow-sm flex items-center justify-center">
                             <Medal size={24} className="text-slate-400 fill-slate-50" />
                           </div>
                         </div>
@@ -1470,15 +1794,15 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({ onNavigate }) 
                       {primeiro && (
                         <div className="flex flex-col items-center animate-pop">
                           <div className="relative mb-2">
-                            <Crown className="w-7 h-7 text-pastel-yellow-500 fill-pastel-yellow-200 absolute -top-5 left-1/2 -translate-x-1/2 animate-bounce" />
-                            <Avatar type={primeiro.avatar} className="w-18 h-18 sm:w-20 sm:h-20 hover:scale-105 transition-transform" />
+                            <Crown className="w-5 h-5 sm:w-7 sm:h-7 text-pastel-yellow-500 fill-pastel-yellow-200 absolute -top-4 sm:-top-5 left-1/2 -translate-x-1/2 animate-bounce" />
+                            <Avatar type={primeiro.avatar} className="w-14 h-14 sm:w-20 sm:h-20 hover:scale-105 transition-transform" />
                             <span className="absolute -top-1 -right-1 bg-pastel-yellow-400 text-white text-[11px] font-black w-6.5 h-6.5 rounded-full flex items-center justify-center border-2 border-white shadow-md animate-pulse">
                               1º
                             </span>
                           </div>
                           <span className="text-sm font-black text-slate-800 font-kids truncate max-w-[100px]">{primeiro.nome}</span>
                           <span className="text-[11px] text-pastel-yellow-600 font-black mb-1 font-parents">★ {primeiro.estrelasAcumuladas} estrelas</span>
-                          <div className="w-20 sm:w-24 bg-gradient-to-t from-pastel-yellow-200 to-pastel-yellow-100 border-t-4 border-pastel-yellow-400 h-28 rounded-t-2xl shadow-md flex items-center justify-center">
+                          <div className="w-18 sm:w-24 bg-gradient-to-t from-pastel-yellow-200 to-pastel-yellow-100 border-t-4 border-pastel-yellow-400 h-20 sm:h-24 rounded-t-2xl shadow-md flex items-center justify-center">
                             <Trophy size={32} className="text-pastel-yellow-500 fill-pastel-yellow-200" />
                           </div>
                         </div>
@@ -1488,14 +1812,14 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({ onNavigate }) 
                       {terceiro && (
                         <div className="flex flex-col items-center animate-pop" style={{ animationDelay: '0.2s' }}>
                           <div className="relative mb-2">
-                            <Avatar type={terceiro.avatar} className="w-12 h-12 sm:w-14 sm:h-14 hover:-rotate-3 transition-transform" />
+                            <Avatar type={terceiro.avatar} className="w-9 h-9 sm:w-14 sm:h-14 hover:-rotate-3 transition-transform" />
                             <span className="absolute -top-1 -right-1 bg-amber-600 text-white text-[9px] font-black w-4.5 h-4.5 rounded-full flex items-center justify-center border-2 border-white shadow-md">
                               3º
                             </span>
                           </div>
                           <span className="text-xs font-black text-slate-700 font-kids truncate max-w-[80px]">{terceiro.nome}</span>
                           <span className="text-[10px] text-pastel-yellow-600 font-black mb-1 font-parents">★ {terceiro.estrelasAcumuladas} estrelas</span>
-                          <div className="w-14 sm:w-16 bg-gradient-to-t from-amber-200 to-amber-100 border-t-4 border-amber-300 h-14 rounded-t-2xl shadow-sm flex items-center justify-center">
+                          <div className="w-12 sm:w-16 bg-gradient-to-t from-amber-200 to-amber-100 border-t-4 border-amber-300 h-10 sm:h-12 rounded-t-2xl shadow-sm flex items-center justify-center">
                             <Medal size={20} className="text-amber-700 fill-amber-50" />
                           </div>
                         </div>
@@ -1530,7 +1854,7 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({ onNavigate }) 
                     return (
                       <div 
                         key={perfil.id}
-                        className={`flex items-center justify-between p-3.5 bg-white rounded-2xl border border-slate-100 hover:shadow-md transition-all active:scale-99 ${hoverStyle}`}
+                        className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 bg-white rounded-2xl border border-slate-100 hover:shadow-md transition-all active:scale-99 ${hoverStyle}`}
                       >
                         {/* Posição e Info da Criança */}
                         <div className="flex items-center gap-3">
@@ -1557,7 +1881,7 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({ onNavigate }) 
                         </div>
 
                         {/* Estatísticas de Missões e Estrelas */}
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2.5 sm:gap-3 pl-9.5 sm:pl-0 self-start sm:self-auto">
                           {/* Missões Cumpridas */}
                           <div className="flex items-center gap-1 bg-pastel-green-50 text-pastel-green-600 px-3 py-1.5 rounded-full font-black text-xs font-kids">
                             <Check size={13} className="stroke-[3]" />
@@ -1743,7 +2067,7 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({ onNavigate }) 
                   <div className="bg-white p-5 border-b border-slate-100 flex flex-col gap-2 font-parents text-xs">
                     <div className="flex items-start justify-between gap-4">
                       <h4 className="text-sm sm:text-base font-extrabold text-slate-800 leading-tight">
-                        EquilibraKids Digest: Balanço do(a) {perfis.map(p => p.nome).join(', ')} da última semana 📊
+                        EquilibraKids Digest: Balanço do(a) {perfis.map(p => p.nome).join(', ')} da última semana
                       </h4>
                       <span className="bg-slate-100 border border-slate-200 text-slate-500 text-[10px] font-black uppercase px-2 py-0.5 rounded-md shrink-0">
                         Entrada 📥
@@ -1836,14 +2160,20 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({ onNavigate }) 
 
                               {/* Estatísticas e Ranking */}
                               {emailRanking && (
-                                <div className="grid grid-cols-2 gap-3 mt-1.5 pt-2.5 border-t border-slate-200/50 border-dashed">
-                                  <div className="bg-white p-2 rounded-lg border border-slate-100 flex items-center justify-between">
-                                    <span className="text-[8px] text-slate-400 font-black uppercase">Estrelas</span>
-                                    <span className="text-xs font-black text-pastel-yellow-500">★ {kid.estrelasAcumuladas}</span>
+                                <div className="grid grid-cols-2 gap-3 mt-2 pt-2.5 border-t border-slate-200/40 border-dashed">
+                                  <div className="bg-pastel-yellow-50/50 p-2 rounded-xl border border-pastel-yellow-200/50 flex items-center justify-between">
+                                    <div className="flex items-center gap-1">
+                                      <span className="text-pastel-yellow-500 font-bold text-xs">★</span>
+                                      <span className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">Estrelas</span>
+                                    </div>
+                                    <span className="text-xs font-black text-slate-700">{kid.estrelasAcumuladas}</span>
                                   </div>
-                                  <div className="bg-white p-2 rounded-lg border border-slate-100 flex items-center justify-between">
-                                    <span className="text-[8px] text-slate-400 font-black uppercase">Quests Offline</span>
-                                    <span className="text-xs font-black text-slate-700">{kid.missoesCumpridas} concluintes</span>
+                                  <div className="bg-pastel-green-50/50 p-2 rounded-xl border border-pastel-green-200/50 flex items-center justify-between">
+                                    <div className="flex items-center gap-1">
+                                      <Check size={10} className="text-pastel-green-500 stroke-[3]" />
+                                      <span className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">Quests</span>
+                                    </div>
+                                    <span className="text-xs font-black text-slate-700">{kid.missoesCumpridas}</span>
                                   </div>
                                 </div>
                               )}
@@ -1852,6 +2182,67 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({ onNavigate }) 
                           );
                         })}
                       </div>
+
+                      {/* Tabela de Classificação do Ranking no E-mail */}
+                      {emailRanking && (
+                        <div className="p-6 border-b border-slate-100 bg-slate-50/20 font-parents">
+                          <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-1.5">
+                            🏆 Ranking de Missões Saudáveis
+                          </h3>
+                          <div className="flex flex-col gap-2.5">
+                            {[...perfis]
+                              .sort((a, b) => b.estrelasAcumuladas - a.estrelasAcumuladas)
+                              .map((perfil, index) => {
+                                const rankColors = [
+                                  'bg-pastel-yellow-100 text-pastel-yellow-700 border-pastel-yellow-300',
+                                  'bg-slate-100 text-slate-700 border-slate-300',
+                                  'bg-amber-100 text-amber-800 border-amber-300'
+                                ];
+                                const rankText = index === 0 ? '🥇 1º' : index === 1 ? '🥈 2º' : index === 2 ? '🥉 3º' : `${index + 1}º`;
+                                const isLeader = index === 0;
+
+                                return (
+                                  <div 
+                                    key={perfil.id} 
+                                    className={`p-3 bg-white border border-slate-100 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 ${
+                                      isLeader ? 'ring-1 ring-pastel-yellow-300/80 bg-pastel-yellow-50/10' : ''
+                                    }`}
+                                  >
+                                    <div className="flex items-center gap-2.5 min-w-0">
+                                      <span className={`text-[9px] font-black px-2 py-0.5 rounded-full border shrink-0 ${
+                                        index < 3 ? rankColors[index] : 'bg-slate-50 text-slate-400 border-slate-200'
+                                      }`}>
+                                        {rankText}
+                                      </span>
+                                      <Avatar type={perfil.avatar} className="w-7 h-7 shrink-0" />
+                                      <div className="min-w-0 flex-1">
+                                        <div className="flex items-center gap-1.5 flex-wrap">
+                                          <span className="font-extrabold text-xs text-slate-800 font-kids block leading-tight truncate">{perfil.nome}</span>
+                                          {isLeader && (
+                                            <span className="bg-pastel-yellow-500 text-white text-[8px] font-black uppercase px-1.5 py-0.5 rounded shadow-3xs leading-none shrink-0">
+                                              Líder 👑
+                                            </span>
+                                          )}
+                                        </div>
+                                        <span className="text-[9px] text-slate-400 block mt-0.5 font-semibold font-parents">
+                                          {perfil.idade} anos
+                                        </span>
+                                      </div>
+                                    </div>
+                                    <div className="flex items-center gap-1.5 pl-[38px] sm:pl-0 self-start sm:self-auto shrink-0 mt-0.5 sm:mt-0">
+                                      <span className="text-[9.5px] font-black text-pastel-green-600 bg-pastel-green-50/80 px-2 py-0.5 rounded-lg border border-pastel-green-100 flex items-center gap-0.5 shrink-0 font-kids">
+                                        <Check size={9} className="stroke-[3]" /> {perfil.missoesCumpridas} {perfil.missoesCumpridas === 1 ? 'Quest' : 'Quests'}
+                                      </span>
+                                      <span className="text-[9.5px] font-black text-pastel-yellow-600 bg-pastel-yellow-50/80 px-2 py-0.5 rounded-lg border border-pastel-yellow-100 flex items-center gap-0.5 shrink-0">
+                                        ★ {perfil.estrelasAcumuladas}
+                                      </span>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                          </div>
+                        </div>
+                      )}
 
                       {/* Alertas de saúde da semana */}
                       {emailAlertas && (
@@ -2094,7 +2485,7 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({ onNavigate }) 
               {/* Tela do celular (Viewport) */}
               <div className="flex-1 w-full bg-white overflow-y-auto overflow-x-hidden no-scrollbar relative select-none" style={{ fontSize: '13.5px' }}>
                 <div className="h-full w-full flex flex-col">
-                  <ChildInterface onNavigate={() => {}} className="h-full min-h-full p-3" isCompact={true} />
+                  <ChildInterface className="h-full min-h-full p-3" isCompact={true} />
                 </div>
               </div>
 
@@ -2103,6 +2494,63 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({ onNavigate }) 
         )}
 
       </div>
+
+      <ParentPinModal
+        isOpen={pinOpen}
+        onClose={() => {
+          setPinOpen(false);
+          setPendingBlockId(null);
+        }}
+        onSuccess={handlePinSuccess}
+      />
+
+      {needRefresh && (
+        <div className="fixed bottom-6 left-6 bg-slate-900 text-white text-xs font-bold py-3 px-4.5 rounded-2xl shadow-2xl flex items-center justify-between gap-4 z-50 animate-pop border border-slate-700 font-parents">
+          <div className="flex items-center gap-2">
+            <Sparkles size={16} className="text-pastel-yellow-400 fill-pastel-yellow-100" />
+            <span>Nova versão disponível! Clique para atualizar.</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => updateServiceWorker(true)}
+              className="px-3 py-1.5 bg-pastel-purple-500 hover:bg-pastel-purple-600 text-white font-extrabold rounded-xl transition-all shadow-md active:scale-95 cursor-pointer"
+            >
+              Atualizar
+            </button>
+            <button
+              onClick={() => setNeedRefresh(false)}
+              className="p-1 hover:bg-slate-800 text-slate-400 hover:text-white rounded-full transition-colors cursor-pointer"
+              aria-label="Dispensar atualização"
+            >
+              <X size={14} />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Toast para Mensagens Recebidas em Foreground */}
+      {foregroundNotification && (
+        <div 
+          role="alert"
+          className="fixed bottom-6 right-6 z-50 max-w-sm w-full bg-slate-950 text-white p-4.5 rounded-2xl shadow-2xl border border-slate-800 flex gap-3 animate-pop"
+        >
+          <div className="p-2.5 bg-pastel-purple-500/20 text-pastel-purple-400 rounded-xl self-start shrink-0">
+            <Bell size={20} className="animate-bounce" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <h5 className="text-xs font-black tracking-tight text-white uppercase">{foregroundNotification.title || 'EquilibraKids'}</h5>
+            <p className="text-xs text-slate-300 font-parents font-medium mt-1 leading-normal">{foregroundNotification.body}</p>
+          </div>
+          <button 
+            type="button"
+            onClick={clearForegroundNotification}
+            className="p-1 hover:bg-slate-800 rounded-lg self-start text-slate-400 hover:text-white transition-colors cursor-pointer"
+            aria-label="Fechar notificação"
+          >
+            <X size={16} />
+          </button>
+        </div>
+      )}
     </div>
   );
 };

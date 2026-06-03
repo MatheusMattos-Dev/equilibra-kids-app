@@ -1,30 +1,23 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useScreenTime } from '../hooks/useScreenTime';
 import { Avatar } from '../components/Avatar';
-import { ParentPinModal } from '../components/ParentPinModal';
 import { Settings, Shield, Sparkles, RefreshCw, Trophy, X, Check } from 'lucide-react';
+import { InstallPrompt } from '../components/InstallPrompt';
 
-interface ProfileSelectionProps {
-  onNavigate: (page: 'child-mode' | 'parent-dashboard') => void;
-}
-
-export const ProfileSelection: React.FC<ProfileSelectionProps> = ({ onNavigate }) => {
+export const ProfileSelection: React.FC = () => {
+  const navigate = useNavigate();
   const { perfis, selecionarPerfil, resetarSimulador } = useScreenTime();
-  const [pinOpen, setPinOpen] = useState<boolean>(false);
   const [rankingOpen, setRankingOpen] = useState<boolean>(false);
   const [showResetToast, setShowResetToast] = useState<boolean>(false);
 
   const handleSelectProfile = (id: string) => {
     selecionarPerfil(id);
-    onNavigate('child-mode');
+    navigate('/crianca');
   };
 
   const handleParentAccess = () => {
-    setPinOpen(true);
-  };
-
-  const handlePinSuccess = () => {
-    onNavigate('parent-dashboard');
+    navigate('/auth');
   };
 
   const handleReset = () => {
@@ -34,7 +27,7 @@ export const ProfileSelection: React.FC<ProfileSelectionProps> = ({ onNavigate }
   };
 
   return (
-    <div className="min-height-100vh flex flex-col justify-between p-6 max-w-4xl mx-auto font-kids animate-pop">
+    <div className="min-h-screen flex flex-col justify-between p-6 max-w-4xl mx-auto font-kids animate-pop relative">
       {/* Toast de Reset */}
       {showResetToast && (
         <div className="fixed top-6 left-1/2 -translate-x-1/2 bg-pastel-green-500 text-white font-bold px-6 py-3 rounded-2xl shadow-lg border-2 border-white animate-bounce z-50 text-sm flex items-center gap-2">
@@ -50,7 +43,7 @@ export const ProfileSelection: React.FC<ProfileSelectionProps> = ({ onNavigate }
             E
           </div>
           <div>
-            <h1 className="text-xl md:text-2xl font-black text-slate-800 tracking-tight m-0">
+            <h1 className="text-lg sm:text-xl lg:text-2xl font-black text-slate-800 tracking-tight m-0">
               Equilibra<span className="text-pastel-green-500">Kids</span>
             </h1>
             <span className="text-[10px] text-slate-400 block font-parents font-semibold uppercase tracking-wider">Tempo de Tela Saudável</span>
@@ -71,7 +64,7 @@ export const ProfileSelection: React.FC<ProfileSelectionProps> = ({ onNavigate }
 
           <button
             onClick={handleParentAccess}
-            className="flex items-center gap-2 px-4 py-2.5 bg-white hover:bg-pastel-purple-50 text-pastel-purple-600 font-bold text-xs rounded-2xl border-2 border-pastel-purple-200 transition-all shadow-sm active:scale-95 font-parents"
+            className="hidden sm:flex items-center gap-2 px-4 py-2.5 bg-white hover:bg-pastel-purple-50 text-pastel-purple-600 font-bold text-xs rounded-2xl border-2 border-pastel-purple-200 transition-all shadow-sm active:scale-95 font-parents"
           >
             <Settings size={14} className="animate-spin-slow" />
             Área dos Pais 🔒
@@ -80,19 +73,19 @@ export const ProfileSelection: React.FC<ProfileSelectionProps> = ({ onNavigate }
       </div>
 
       {/* Main Selector */}
-      <div className="my-auto py-10 text-center">
+      <div className="my-auto py-6 sm:py-10 text-center">
         <div className="inline-flex p-3 bg-pastel-yellow-100 rounded-3xl text-pastel-yellow-500 mb-4 animate-float">
           <Sparkles size={32} className="fill-pastel-yellow-200" />
         </div>
-        <h2 className="text-2xl md:text-4xl font-black text-slate-700 tracking-tight mb-2">
+        <h2 className="text-xl sm:text-2xl lg:text-4xl font-black text-slate-700 tracking-tight mb-2">
           Quem vai brincar hoje?
         </h2>
-        <p className="text-xs md:text-sm text-slate-400 max-w-sm mx-auto mb-10 font-parents font-semibold">
+        <p className="text-sm sm:text-base lg:text-lg text-slate-400 max-w-md mx-auto mb-8 font-parents font-semibold px-4">
           Escolha seu perfil para começar a se divertir e acumular estrelas de equilíbrio digital!
         </p>
 
         {/* Perfis */}
-        <div className="flex flex-wrap justify-center gap-6 max-w-2xl mx-auto px-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 max-w-2xl mx-auto px-4 justify-items-center">
           {perfis.map((perfil) => {
             // Estilos específicos para cada bichinho
             const themeConfig = {
@@ -112,7 +105,7 @@ export const ProfileSelection: React.FC<ProfileSelectionProps> = ({ onNavigate }
                 key={perfil.id}
                 onClick={() => handleSelectProfile(perfil.id)}
                 aria-label={`Selecionar perfil de ${perfil.nome}. ${perfil.status === 'bloqueado' ? 'Tempo de tela esgotado' : `${restanteMinutos} minutos restantes`}`}
-                className={`p-6 bg-gradient-to-b ${conf} rounded-[36px] border-2 shadow-sm hover:shadow-xl hover:-translate-y-1.5 transition-all active:scale-95 group flex flex-col items-center`}
+                className={`p-6 bg-gradient-to-b ${conf} rounded-[36px] border-2 shadow-sm hover:shadow-xl hover:-translate-y-1.5 transition-all active:scale-95 group flex flex-col items-center min-h-[220px] w-full max-w-[220px]`}
               >
                 <div className="relative mb-3">
                   <Avatar type={perfil.avatar} className="w-24 h-24 group-hover:rotate-6 transition-transform duration-300" animate={false} />
@@ -159,12 +152,7 @@ export const ProfileSelection: React.FC<ProfileSelectionProps> = ({ onNavigate }
         </button>
       </div>
 
-      {/* Modal PIN de Acesso */}
-      <ParentPinModal
-        isOpen={pinOpen}
-        onClose={() => setPinOpen(false)}
-        onSuccess={handlePinSuccess}
-      />
+
 
       {/* Modal de Ranking de Missões */}
       {rankingOpen && (
@@ -197,7 +185,7 @@ export const ProfileSelection: React.FC<ProfileSelectionProps> = ({ onNavigate }
             </div>
 
             {/* Leaderboard */}
-            <div className="flex flex-col gap-3 max-h-[320px] overflow-y-auto pr-1 no-scrollbar">
+            <div className="flex flex-row md:grid md:grid-cols-1 gap-3 overflow-x-auto md:overflow-x-visible pb-2 md:pb-0 w-full no-scrollbar max-h-[320px] pr-1">
               {[...perfis]
                 .sort((a, b) => b.estrelasAcumuladas - a.estrelasAcumuladas)
                 .map((perfil, index) => {
@@ -218,7 +206,7 @@ export const ProfileSelection: React.FC<ProfileSelectionProps> = ({ onNavigate }
                   return (
                     <div
                       key={perfil.id}
-                      className={`flex items-center justify-between p-3.5 bg-slate-50/50 rounded-2xl border-2 transition-all active:scale-99 ${cardBorder}`}
+                      className={`flex items-center justify-between p-3.5 bg-slate-50/50 rounded-2xl border-2 transition-all active:scale-99 ${cardBorder} w-[260px] shrink-0 md:w-full md:shrink`}
                     >
                       <div className="flex items-center gap-3">
                         {/* Posição */}
@@ -266,6 +254,19 @@ export const ProfileSelection: React.FC<ProfileSelectionProps> = ({ onNavigate }
           </div>
         </div>
       )}
+      
+      {/* Botão de Acesso dos Pais Sticky no Mobile */}
+      <div className="sm:hidden sticky bottom-4 left-0 right-0 z-10 w-full mt-6">
+        <button
+          onClick={handleParentAccess}
+          className="w-full flex items-center justify-center gap-2 py-3 bg-white hover:bg-pastel-purple-50 text-pastel-purple-600 font-extrabold text-sm rounded-2xl border-2 border-pastel-purple-200 transition-all shadow-lg active:scale-95 font-parents"
+        >
+          <Settings size={16} className="animate-spin-slow" />
+          Área dos Pais 🔒
+        </button>
+      </div>
+
+      <InstallPrompt />
     </div>
   );
 };

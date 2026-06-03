@@ -62,11 +62,11 @@ export const HealthAlertCard: React.FC<HealthAlertCardProps> = ({ alerta, onReso
   return (
     <div 
       role="alert"
-      className={`p-5 rounded-2xl border ${config.bg} ${config.borderLeft} shadow-sm glass-panel transition-all hover:shadow-md font-parents animate-pop`}
+      className={`w-full max-w-4xl mx-auto p-5 rounded-2xl border ${config.bg} ${config.borderLeft} shadow-sm glass-panel transition-all hover:shadow-md font-parents animate-pop`}
     >
       {/* Header do Alerta */}
-      <div className="flex flex-wrap items-center justify-between gap-2 mb-3.5">
-        <div className="flex items-center gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-3.5">
+        <div className="flex items-center gap-3 flex-nowrap">
           <div className={`p-2 rounded-xl ${config.iconBg} shrink-0`}>
             {getIcon()}
           </div>
@@ -80,7 +80,7 @@ export const HealthAlertCard: React.FC<HealthAlertCardProps> = ({ alerta, onReso
             </h4>
           </div>
         </div>
-        <div className="bg-slate-100 text-slate-600 font-extrabold text-xs px-3 py-1 rounded-full border border-slate-200">
+        <div className="bg-slate-100 text-slate-600 font-extrabold text-xs px-3 py-1 rounded-full border border-slate-200 self-start sm:self-auto">
           Perfil: {alerta.childNome}
         </div>
       </div>
@@ -98,7 +98,7 @@ export const HealthAlertCard: React.FC<HealthAlertCardProps> = ({ alerta, onReso
             {alerta.tipo === 'EVOLUCAO_POSITIVA' ? <Sparkles size={14} /> : <HeartPulse size={14} />}
             <span>{alerta.tipo === 'EVOLUCAO_POSITIVA' ? 'Benefício para o Desenvolvimento' : 'Por que isso prejudica a saúde?'}</span>
           </div>
-          <p className="text-slate-600 text-xs leading-relaxed font-medium">
+          <p className="text-slate-600 text-sm md:text-base leading-relaxed font-medium">
             {alerta.impacto}
           </p>
         </div>
@@ -109,7 +109,7 @@ export const HealthAlertCard: React.FC<HealthAlertCardProps> = ({ alerta, onReso
             <Sparkles size={14} className="animate-wiggle" />
             <span>{alerta.tipo === 'EVOLUCAO_POSITIVA' ? 'Como celebrar e incentivar?' : 'Dica Prática para os Pais'}</span>
           </div>
-          <p className="text-slate-600 text-xs leading-relaxed font-medium">
+          <p className="text-slate-600 text-sm md:text-base leading-relaxed font-medium">
             {alerta.dicaPratica}
           </p>
         </div>
@@ -117,13 +117,13 @@ export const HealthAlertCard: React.FC<HealthAlertCardProps> = ({ alerta, onReso
 
       {/* Ação de Resolução */}
       {onResolve && (
-        <div className="mt-4 flex justify-end">
+        <div className="mt-4 flex justify-end w-full">
           <button
             onClick={onResolve}
-            className="flex items-center gap-1.5 px-4 py-1.5 bg-white hover:bg-pastel-green-50 text-pastel-green-600 hover:text-pastel-green-700 font-bold text-xs rounded-xl border border-pastel-green-200 transition-colors shadow-sm active:scale-95"
+            className="w-full sm:w-auto flex items-center justify-center gap-1.5 px-4 py-2 bg-white hover:bg-pastel-green-50 text-pastel-green-600 hover:text-pastel-green-700 font-bold text-xs rounded-xl border border-pastel-green-200 transition-colors shadow-sm active:scale-95"
           >
-            <BookOpen size={12} />
-            {alerta.tipo === 'EVOLUCAO_POSITIVA' ? 'Excelente, vou continuar incentivando!' : 'Entendi, vou aplicar a dica!'}
+            <BookOpen size={12} className="shrink-0" />
+            <span>{alerta.tipo === 'EVOLUCAO_POSITIVA' ? 'Excelente, vou continuar incentivando!' : 'Entendi, vou aplicar a dica!'}</span>
           </button>
         </div>
       )}

@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, Lock, ShieldAlert, Award, Calculator, Eye, EyeOff } from 'lucide-react';
+import { auth } from '../lib/firebase';
+import { EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
 
 interface ParentPinModalProps {
   isOpen: boolean;
@@ -9,15 +11,18 @@ interface ParentPinModalProps {
 
 export const ParentPinModal: React.FC<ParentPinModalProps> = ({ isOpen, onClose, onSuccess }) => {
   const [method, setMethod] = useState<'pin' | 'math'>('pin');
-  const [pin, setPin] = useState<string>('');
+  const [pin, setPin] = useState<string>(''); // Usado como senha/PIN do responsável
   const [mathChallenge, setMathChallenge] = useState<{ num1: number; num2: number; op: 'x' | '+'; result: number }>({ num1: 0, num2: 0, op: '+', result: 0 });
   const [mathAnswer, setMathAnswer] = useState<string>('');
   const [showPin, setShowPin] = useState<boolean>(false);
   const [error, setError] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string>('');
+  const [isValidating, setIsValidating] = useState<boolean>(false);
 
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
+
+  const isGoogleUser = auth.currentUser?.providerData.some(p => p.providerId === 'google.com');
 
   // Gerar Desafio Matemático Aleatório
   const generateMathChallenge = () => {
@@ -69,15 +74,7 @@ export const ParentPinModal: React.FC<ParentPinModalProps> = ({ isOpen, onClose,
   const handleNumberClick = (num: string) => {
     setError(false);
     if (method === 'pin') {
-      if (pin.length < 4) {
-        const newPin = pin + num;
-        setPin(newPin);
-        
-        // Se preencheu 4 dígitos, valida automaticamente
-        if (newPin.length === 4) {
-          validatePin(newPin);
-        }
-      }
+      setPin(prev => prev + num);
     } else {
       setMathAnswer(prev => prev + num);
     }
@@ -92,12 +89,40 @@ export const ParentPinModal: React.FC<ParentPinModalProps> = ({ isOpen, onClose,
     }
   };
 
-  const validatePin = (code: string) => {
-    if (code === '1234') {
+  const validatePin = async (password: string) => {
+    setError(false);
+    setErrorMessage('');
+    const user = auth.currentUser;
+
+    if (!user) {
+      triggerError('Nenhum responsável autenticado no momento.');
+      return;
+    }
+
+    const isEmailProvider = user.providerData.some(p => p.providerId === 'password');
+
+    if (isEmailProvider && user.email) {
+      setIsValidating(true);
+      try {
+        const credential = EmailAuthProvider.credential(user.email, password);
+        await reauthenticateWithCredential(user, credential);
+        setIsValidating(false);
+        onSuccess();
+        onClose();
+      } catch (err: any) {
+        setIsValidating(false);
+        let msg = 'Senha incorreta.';
+        if (err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
+          msg = 'Senha incorreta. Digite a senha da sua conta do Firebase.';
+        } else if (err.code === 'auth/too-many-requests') {
+          msg = 'Muitas tentativas. Aguarde alguns minutos ou use o desafio matemático.';
+        }
+        triggerError(msg);
+      }
+    } else {
+      // Se for Google ou outro provider sem senha local
       onSuccess();
       onClose();
-    } else {
-      triggerError('Código PIN incorreto! Dica: O PIN padrão da demonstração é 1234.');
     }
   };
 
@@ -115,19 +140,18 @@ export const ParentPinModal: React.FC<ParentPinModalProps> = ({ isOpen, onClose,
     setError(true);
     setErrorMessage(msg);
     setPin('');
-    // Vibrar levemente no celular se disponível
     if (navigator.vibrate) {
       navigator.vibrate(100);
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-soft-dark-900/60 backdrop-blur-md animate-fade-in font-parents">
+   return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center sm:p-4 bg-soft-dark-900/60 backdrop-blur-md animate-fade-in font-parents">
       <div 
         role="dialog"
         aria-modal="true"
         aria-labelledby="modal-parents-title"
-        className={`w-full max-w-md bg-white rounded-3xl overflow-hidden shadow-2xl border-4 border-pastel-purple-200 glass-panel transition-all duration-300 ${
+        className={`w-full h-full sm:h-auto sm:max-w-sm bg-white rounded-none sm:rounded-3xl overflow-y-auto sm:overflow-hidden shadow-2xl border-0 sm:border-4 border-pastel-purple-200 glass-panel transition-all duration-300 ${
           error ? 'animate-bounce shadow-pastel-pink-200' : ''
         }`}
         style={error ? { animation: 'wiggle 0.3s ease-in-out 2' } : {}}
@@ -148,7 +172,7 @@ export const ParentPinModal: React.FC<ParentPinModalProps> = ({ isOpen, onClose,
           </div>
           
           <h3 id="modal-parents-title" className="text-xl font-bold text-slate-800">Controle de Adultos</h3>
-          <p id="pin-instruction" className="text-sm text-slate-500 mt-1">Insira a senha dos pais para acessar as configurações</p>
+          <p id="pin-instruction" className="text-sm text-slate-500 mt-1">Valide sua identidade para realizar ações protegidas</p>
         </div>
 
         {/* Seleção do Método */}
@@ -162,7 +186,7 @@ export const ParentPinModal: React.FC<ParentPinModalProps> = ({ isOpen, onClose,
             }`}
           >
             <Lock size={15} />
-            Senha PIN
+            {isGoogleUser ? 'Confirmar Acesso' : 'Senha do Responsável'}
           </button>
           <button
             onClick={() => { setMethod('math'); setError(false); }}
@@ -173,7 +197,7 @@ export const ParentPinModal: React.FC<ParentPinModalProps> = ({ isOpen, onClose,
             }`}
           >
             <Calculator size={15} />
-            Desafio
+            Desafio Matemático
           </button>
         </div>
 
@@ -187,52 +211,64 @@ export const ParentPinModal: React.FC<ParentPinModalProps> = ({ isOpen, onClose,
           )}
 
           {method === 'pin' ? (
-            /* Campo PIN */
+            /* Método PIN / Senha */
             <div className="w-full flex flex-col items-center">
-              <div
-                role="textbox"
-                aria-label="PIN de 4 dígitos"
-                aria-valuenow={pin.length}
-                aria-valuetext={`${pin.length} de 4 dígitos preenchidos`}
-                aria-describedby="pin-instruction pin-demo-note"
-                tabIndex={0}
-                className="relative flex items-center justify-center gap-3.5 py-4 mb-6 outline-none focus-visible:ring-2 focus-visible:ring-pastel-purple-500 rounded-lg px-2"
-              >
-                {[0, 1, 2, 3].map((idx) => (
-                  <div 
-                    key={idx}
-                    className={`w-6 h-6 rounded-full border-2 transition-all duration-200 ${
-                      pin.length > idx 
-                        ? 'bg-pastel-purple-500 border-pastel-purple-600 scale-110' 
-                        : 'border-slate-300 bg-slate-50'
-                    }`}
+              {isGoogleUser ? (
+                /* Layout para Google Users */
+                <div className="text-center py-4 mb-4 w-full">
+                  <p className="text-sm font-semibold text-slate-700">
+                    Você está autenticado com o Google:
+                  </p>
+                  <p className="text-xs text-pastel-purple-600 font-black mt-1">
+                    {auth.currentUser?.displayName || auth.currentUser?.email}
+                  </p>
+                  <p className="text-[11px] text-slate-400 mt-4 font-medium leading-relaxed">
+                    Sessão ativa protegida pelo Firebase. Clique abaixo para confirmar o acesso.
+                  </p>
+                </div>
+              ) : (
+                /* Input de Senha Tradicional/Física para Email/Senha Users */
+                <div className="w-full relative mb-4">
+                  <input
+                    type={showPin ? 'text' : 'password'}
+                    placeholder="Digite a senha..."
+                    value={pin}
+                    onChange={(e) => {
+                      setError(false);
+                      setPin(e.target.value);
+                    }}
+                    className="w-full pl-4 pr-10 py-3 bg-slate-50 border-2 border-slate-100 rounded-2xl text-slate-700 text-xl sm:text-2xl tracking-[0.25em] focus:border-pastel-purple-300 focus:bg-white outline-none transition-all font-bold text-center"
                   />
-                ))}
-                
-                <button
-                  type="button"
-                  onClick={() => setShowPin(!showPin)}
-                  aria-label={showPin ? "Ocultar PIN" : "Mostrar PIN"}
-                  aria-pressed={showPin}
-                  className="absolute -right-10 text-slate-400 hover:text-slate-600 p-1"
-                  title={showPin ? "Ocultar PIN" : "Mostrar PIN"}
-                >
-                  {showPin ? <EyeOff size={18} /> : <Eye size={18} />}
-                </button>
-              </div>
-              
-              {showPin && pin.length > 0 && (
-                <div className="text-xs text-pastel-purple-500 font-semibold mb-4 bg-pastel-purple-50 px-3 py-1 rounded-full">
-                  Digitado: {pin}
+                  <button
+                    type="button"
+                    onClick={() => setShowPin(!showPin)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1"
+                  >
+                    {showPin ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
                 </div>
               )}
+              
+              <button
+                onClick={() => validatePin(pin)}
+                disabled={(!isGoogleUser && !pin) || isValidating}
+                className="w-full py-2.5 mb-4 bg-pastel-purple-500 hover:bg-pastel-purple-600 text-white rounded-xl font-bold shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all text-sm flex items-center justify-center gap-2"
+              >
+                {isValidating ? (
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <>
+                    <Award size={16} /> Confirmar Acesso
+                  </>
+                )}
+              </button>
             </div>
           ) : (
             /* Desafio Matemático */
             <div className="w-full flex flex-col items-center mb-6">
               <div className="text-center mb-4">
                 <span className="text-xs text-slate-400 uppercase tracking-wider font-semibold">Quanto é?</span>
-                <div className="text-3xl font-black text-slate-700 mt-1 flex items-center justify-center gap-2">
+                <div className="text-3xl sm:text-4xl font-black text-slate-700 mt-1 flex flex-wrap items-center justify-center gap-2">
                   <span>{mathChallenge.num1}</span>
                   <span className="text-pastel-purple-500 text-2xl">{mathChallenge.op === 'x' ? '×' : '+'}</span>
                   <span>{mathChallenge.num2}</span>
@@ -253,51 +289,57 @@ export const ParentPinModal: React.FC<ParentPinModalProps> = ({ isOpen, onClose,
             </div>
           )}
 
-          {/* Teclado Numérico Lúdico */}
-          <div
-            role="group"
-            aria-label="Teclado numérico virtual"
-            className="w-full max-w-[280px] grid grid-cols-3 gap-3"
-          >
-            {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((num) => (
+          {/* Teclado Numérico Lúdico (útil se a senha for numérica ou para o desafio) */}
+          {(!isGoogleUser || method === 'math') && (
+            <div
+              role="group"
+              aria-label="Teclado numérico virtual"
+              className="w-full max-w-[280px] grid grid-cols-3 gap-3"
+            >
+              {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((num) => (
+                <button
+                  key={num}
+                  type="button"
+                  onClick={() => handleNumberClick(num)}
+                  aria-label={`Dígito ${num}`}
+                  className="h-14 sm:h-12 bg-slate-50 hover:bg-pastel-purple-100 hover:text-pastel-purple-600 border border-slate-100 text-slate-600 font-extrabold text-lg rounded-2xl transition-all active:scale-95 flex items-center justify-center shadow-sm"
+                >
+                  {num}
+                </button>
+              ))}
               <button
-                key={num}
-                onClick={() => handleNumberClick(num)}
-                aria-label={`Dígito ${num}`}
-                className="h-14 bg-slate-50 hover:bg-pastel-purple-100 hover:text-pastel-purple-600 border border-slate-100 text-slate-600 font-extrabold text-lg rounded-2xl transition-all active:scale-95 flex items-center justify-center shadow-sm"
+                type="button"
+                onClick={() => {
+                  if (method === 'pin') setPin('');
+                  else setMathAnswer('');
+                  setError(false);
+                }}
+                aria-label="Limpar todos os dígitos"
+                className="h-14 sm:h-12 text-xs font-bold text-pastel-pink-500 hover:bg-pastel-pink-50 rounded-2xl border border-transparent active:scale-95 flex items-center justify-center"
               >
-                {num}
+                Limpar
               </button>
-            ))}
-            <button
-              onClick={() => {
-                if (method === 'pin') setPin('');
-                else setMathAnswer('');
-                setError(false);
-              }}
-              aria-label="Limpar todos os dígitos"
-              className="h-14 text-xs font-bold text-pastel-pink-500 hover:bg-pastel-pink-50 rounded-2xl border border-transparent active:scale-95 flex items-center justify-center"
-            >
-              Limpar
-            </button>
-            <button
-              onClick={() => handleNumberClick('0')}
-              aria-label="Dígito 0"
-              className="h-14 bg-slate-50 hover:bg-pastel-purple-100 hover:text-pastel-purple-600 border border-slate-100 text-slate-600 font-extrabold text-lg rounded-2xl transition-all active:scale-95 flex items-center justify-center shadow-sm"
-            >
-              0
-            </button>
-            <button
-              onClick={handleBackspace}
-              aria-label="Apagar último dígito"
-              className="h-14 text-xs font-bold text-slate-500 hover:bg-slate-100 rounded-2xl border border-transparent active:scale-95 flex items-center justify-center"
-            >
-              Apagar
-            </button>
-          </div>
+              <button
+                type="button"
+                onClick={() => handleNumberClick('0')}
+                aria-label="Dígito 0"
+                className="h-14 sm:h-12 bg-slate-50 hover:bg-pastel-purple-100 hover:text-pastel-purple-600 border border-slate-100 text-slate-600 font-extrabold text-lg rounded-2xl transition-all active:scale-95 flex items-center justify-center shadow-sm"
+              >
+                0
+              </button>
+              <button
+                type="button"
+                onClick={handleBackspace}
+                aria-label="Apagar último dígito"
+                className="h-14 sm:h-12 text-xs font-bold text-slate-500 hover:bg-slate-100 rounded-2xl border border-transparent active:scale-95 flex items-center justify-center"
+              >
+                Apagar
+              </button>
+            </div>
+          )}
           
           <div id="pin-demo-note" className="mt-5 text-center">
-            <span className="text-[10px] text-slate-400 block">Demonstração: PIN padrão é <strong>1234</strong></span>
+            <span className="text-[10px] text-slate-400 block">Sessão protegida por autenticação real via Firebase Auth</span>
           </div>
         </div>
       </div>

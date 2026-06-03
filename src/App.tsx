@@ -1,48 +1,31 @@
-import { useState } from 'react';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { ScreenTimeProvider } from './hooks/useScreenTime';
 import { ProfileSelection } from './pages/ProfileSelection';
 import { ChildInterface } from './pages/ChildInterface';
 import { ParentDashboard } from './pages/ParentDashboard';
-
-type ViewType = 'profile-selection' | 'child-mode' | 'parent-dashboard';
-
-function AppContent() {
-  const [currentView, setCurrentView] = useState<ViewType>('parent-dashboard');
-
-  const renderView = () => {
-    switch (currentView) {
-      case 'child-mode':
-        return (
-          <ChildInterface 
-            onNavigate={(page) => setCurrentView(page)} 
-          />
-        );
-      case 'parent-dashboard':
-        return (
-          <ParentDashboard 
-            onNavigate={(page) => setCurrentView(page)} 
-          />
-        );
-      case 'profile-selection':
-        return (
-          <ProfileSelection 
-            onNavigate={(page) => setCurrentView(page)} 
-          />
-        );
-    }
-  };
-
-  return (
-    <div className="w-full min-h-screen">
-      {renderView()}
-    </div>
-  );
-}
+import { AuthPage } from './pages/AuthPage';
+import { ProtectedRoute } from './components/ProtectedRoute';
 
 function App() {
   return (
     <ScreenTimeProvider>
-      <AppContent />
+      <BrowserRouter>
+        <div className="w-full min-h-screen">
+          <Routes>
+            <Route path="/" element={<ProfileSelection />} />
+            <Route path="/auth" element={<AuthPage />} />
+            <Route 
+              path="/pais" 
+              element={
+                <ProtectedRoute>
+                  <ParentDashboard />
+                </ProtectedRoute>
+              } 
+            />
+            <Route path="/crianca" element={<ChildInterface />} />
+          </Routes>
+        </div>
+      </BrowserRouter>
     </ScreenTimeProvider>
   );
 }
