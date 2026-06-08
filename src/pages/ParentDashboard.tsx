@@ -9,7 +9,7 @@ import {
   TrendingUp, Sparkles, Check, Smartphone, ToggleLeft, ToggleRight,
   Trophy, Medal, Crown, Mail,
   Palette, Compass, Droplet, BookOpen, Star, Trash, Smile,
-  AlertTriangle, X
+  AlertTriangle, X, Calendar
 } from 'lucide-react';
 import { ChildInterface } from './ChildInterface';
 import { ParentPinModal } from '../components/ParentPinModal';
@@ -745,45 +745,73 @@ export const ParentDashboard: React.FC = () => {
                   else if (score < 8.5) scoreLabel = 'Bom Equilíbrio 🚀';
 
                   return (
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
                       
                       {/* Card Média Diária */}
-                      <div className={`p-4 rounded-2xl border shadow-xs ${cardBg}`}>
-                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Média Diária</span>
-                        <div className="flex items-baseline gap-1 mt-1.5">
-                          <span className={`text-2xl font-black ${textColor}`}>{avg}</span>
-                          <span className="text-xs text-slate-500 font-bold font-parents">m / dia</span>
+                      <div className={`p-4.5 rounded-3xl border shadow-2xs transition-all hover:shadow-sm ${cardBg} flex flex-col justify-between min-h-[112px]`}>
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Média Diária</span>
+                          <div className={`p-1.5 rounded-xl ${textColor === 'text-pastel-pink-500' ? 'bg-pastel-pink-100/50' : (textColor === 'text-pastel-yellow-600' ? 'bg-pastel-yellow-100/50' : 'bg-emerald-100/50')}`}>
+                            <Clock size={15} className={textColor} />
+                          </div>
                         </div>
-                        <span className="text-[10px] font-black uppercase mt-1 block tracking-wider">{ratingText}</span>
+                        <div className="mt-2.5">
+                          <div className="flex items-baseline gap-1">
+                            <span className={`text-2xl font-black ${textColor}`}>{avg}</span>
+                            <span className="text-xs text-slate-500 font-bold font-parents">m / dia</span>
+                          </div>
+                          <span className="text-[9px] font-black uppercase mt-1 block tracking-wider leading-none">{ratingText}</span>
+                        </div>
                       </div>
 
                       {/* Card Total Semanal */}
-                      <div className="p-4 rounded-2xl border border-slate-100 bg-slate-50/50 shadow-xs">
-                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Total na Semana</span>
-                        <div className="flex items-baseline gap-1 mt-1.5">
-                          <span className="text-2xl font-black text-slate-700">{(total / 60).toFixed(1)}</span>
-                          <span className="text-xs text-slate-500 font-bold font-parents">horas</span>
+                      <div className="p-4.5 rounded-3xl border border-slate-100 bg-slate-50/50 shadow-2xs transition-all hover:shadow-sm flex flex-col justify-between min-h-[112px]">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Total na Semana</span>
+                          <div className="p-1.5 rounded-xl bg-slate-200/50">
+                            <Calendar size={15} className="text-slate-500" />
+                          </div>
                         </div>
-                        <span className="text-[10px] text-slate-400 font-semibold block mt-1 leading-tight font-parents">{insightText}</span>
+                        <div className="mt-2.5">
+                          <div className="flex items-baseline gap-1">
+                            <span className="text-2xl font-black text-slate-700">{(total / 60).toFixed(1)}</span>
+                            <span className="text-xs text-slate-500 font-bold font-parents">horas</span>
+                          </div>
+                          <span className="text-[9px] text-slate-400 font-semibold block mt-1 leading-tight font-parents">{insightText}</span>
+                        </div>
                       </div>
 
                       {/* Card Estrelas */}
-                      <div className="p-4 rounded-2xl border border-slate-100 bg-slate-50/50 shadow-xs">
-                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Estrelas Acumuladas</span>
-                        <div className="flex items-baseline gap-1 mt-1.5">
-                          <span className="text-2xl font-black text-pastel-yellow-500">★ {estrelas}</span>
+                      <div className="p-4.5 rounded-3xl border border-slate-100 bg-slate-50/50 shadow-2xs transition-all hover:shadow-sm flex flex-col justify-between min-h-[112px]">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Estrelas Acumuladas</span>
+                          <div className="p-1.5 rounded-xl bg-pastel-yellow-100/50">
+                            <Star size={15} className="text-pastel-yellow-500 fill-pastel-yellow-200" />
+                          </div>
                         </div>
-                        <span className="text-[10px] text-slate-400 font-semibold block mt-1 leading-tight font-parents">Estrelas conquistadas em quests e missões no mundo real.</span>
+                        <div className="mt-2.5">
+                          <div className="flex items-baseline gap-1">
+                            <span className="text-2xl font-black text-pastel-yellow-500">★ {estrelas}</span>
+                          </div>
+                          <span className="text-[9px] text-slate-400 font-semibold block mt-1 leading-tight font-parents">Ganhas em missões e brincadeiras offline.</span>
+                        </div>
                       </div>
 
-                      {/* Card Índice Neuropediátrico */}
-                      <div className="p-4 rounded-2xl border border-slate-100 bg-gradient-to-br from-pastel-purple-50/40 to-pastel-blue-50/40 shadow-xs">
-                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Score de Equilíbrio</span>
-                        <div className="flex items-baseline gap-1 mt-1.5">
-                          <span className="text-2xl font-black text-pastel-purple-600">{score.toFixed(1)}</span>
-                          <span className="text-xs text-slate-500 font-bold font-parents">/ 10</span>
+                      {/* Card Score de Equilíbrio */}
+                      <div className="p-4.5 rounded-3xl border border-slate-100 bg-gradient-to-br from-pastel-purple-50/50 to-pastel-blue-50/50 shadow-2xs transition-all hover:shadow-sm flex flex-col justify-between min-h-[112px]">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Score de Equilíbrio</span>
+                          <div className="p-1.5 rounded-xl bg-pastel-purple-100/50">
+                            <Activity size={15} className="text-pastel-purple-500" />
+                          </div>
                         </div>
-                        <span className="text-[10px] text-pastel-purple-600 font-black uppercase block mt-1 tracking-wider">{scoreLabel}</span>
+                        <div className="mt-2.5">
+                          <div className="flex items-baseline gap-1">
+                            <span className="text-2xl font-black text-pastel-purple-600">{score.toFixed(1)}</span>
+                            <span className="text-xs text-slate-500 font-bold font-parents">/ 10</span>
+                          </div>
+                          <span className="text-[9px] text-pastel-purple-600 font-black uppercase block mt-1 tracking-wider leading-none">{scoreLabel}</span>
+                        </div>
                       </div>
 
                     </div>
@@ -791,7 +819,7 @@ export const ParentDashboard: React.FC = () => {
                 })()}
 
                 {/* Área do Gráfico */}
-                <div className="w-full bg-slate-50/50 p-5 rounded-2xl border border-slate-100 relative">
+                <div className="w-full bg-slate-50/30 p-5 rounded-2xl border border-slate-100 relative overflow-hidden">
                   
                   {/* Tooltip Flutuante Interativo */}
                   {hoveredBarInfo && (
@@ -816,7 +844,7 @@ export const ParentDashboard: React.FC = () => {
                       );
                     })() : null}
                     <div className="flex items-center gap-1.5 bg-pastel-green-50 border border-pastel-green-200 px-2.5 py-1 rounded-lg text-[9px] font-black text-pastel-green-600 shadow-2xs">
-                      <span className="w-1.5 h-1.5 bg-pastel-green-500 rounded-full" />
+                      <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full" />
                       <span>Zona Segura: 60m</span>
                     </div>
                   </div>
@@ -833,21 +861,21 @@ export const ParentDashboard: React.FC = () => {
                   >
                     {/* Definições de Gradientes e Texturas */}
                     <defs>
-                      <linearGradient id="grad-blue" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#46b3cc" />
-                        <stop offset="100%" stopColor="#338ea3" />
+                      <linearGradient id="grad-lion" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#fcd34d" />
+                        <stop offset="100%" stopColor="#f59e0b" />
                       </linearGradient>
-                      <linearGradient id="grad-pink" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#f67280" />
-                        <stop offset="100%" stopColor="#d55160" />
+                      <linearGradient id="grad-cat" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#f472b6" />
+                        <stop offset="100%" stopColor="#db2777" />
                       </linearGradient>
-                      <linearGradient id="grad-purple" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#9e74d6" />
-                        <stop offset="100%" stopColor="#7b53b2" />
+                      <linearGradient id="grad-owl" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#c084fc" />
+                        <stop offset="100%" stopColor="#8b5cf6" />
                       </linearGradient>
-                      <linearGradient id="grad-yellow" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#f1c43f" />
-                        <stop offset="100%" stopColor="#d4a727" />
+                      <linearGradient id="grad-bear" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#60a5fa" />
+                        <stop offset="100%" stopColor="#3b82f6" />
                       </linearGradient>
 
                       {/* Texturas acessíveis para não depender apenas de cores */}
@@ -866,20 +894,24 @@ export const ParentDashboard: React.FC = () => {
                       </pattern>
                     </defs>
 
-                    {/* Linhas de grade horizontais */}
-                    <line x1="40" y1="20" x2="560" y2="20" stroke="#e2e8f0" strokeWidth="1" strokeDasharray="3 3" />
-                    <line x1="40" y1="60" x2="560" y2="60" stroke="#e2e8f0" strokeWidth="1" strokeDasharray="3 3" />
-                    <line x1="40" y1="100" x2="560" y2="100" stroke="#e2e8f0" strokeWidth="1" strokeDasharray="3 3" />
-                    <line x1="40" y1="140" x2="560" y2="140" stroke="#cbd5e1" strokeWidth="1.5" /> {/* Linha Zero */}
+                    {/* Zona Segura Sombreada Verde (Pediatria) */}
+                    <rect x="40" y="100" width="520" height="40" fill="#10b981" fillOpacity="0.04" rx="6" />
+
+                    {/* Linhas de grade horizontais e moldura */}
+                    <line x1="40" y1="20" x2="560" y2="20" stroke="#f1f5f9" strokeWidth="1" strokeDasharray="3 3" />
+                    <line x1="40" y1="60" x2="560" y2="60" stroke="#f1f5f9" strokeWidth="1" strokeDasharray="3 3" />
+                    <line x1="40" y1="100" x2="560" y2="100" stroke="#f1f5f9" strokeWidth="1" strokeDasharray="3 3" />
+                    <rect x="40" y="20" width="520" height="120" stroke="#f1f5f9" strokeWidth="1" fill="none" rx="6" />
+                    <line x1="40" y1="140" x2="560" y2="140" stroke="#e2e8f0" strokeWidth="1.5" /> {/* Linha Zero */}
 
                     {/* Rótulos do Eixo Y */}
-                    <text x="15" y="24" fill="#94a3b8" fontSize="10" fontWeight="bold">3h+</text>
-                    <text x="15" y="64" fill="#94a3b8" fontSize="10" fontWeight="bold">2h</text>
-                    <text x="15" y="104" fill="#94a3b8" fontSize="10" fontWeight="bold">1h</text>
-                    <text x="15" y="144" fill="#94a3b8" fontSize="10" fontWeight="bold">0</text>
+                    <text x="15" y="24" fill="#94a3b8" fontSize="10" fontWeight="bold" className="font-parents">3h+</text>
+                    <text x="15" y="64" fill="#94a3b8" fontSize="10" fontWeight="bold" className="font-parents">2h</text>
+                    <text x="15" y="104" fill="#94a3b8" fontSize="10" fontWeight="bold" className="font-parents">1h</text>
+                    <text x="15" y="144" fill="#94a3b8" fontSize="10" fontWeight="bold" className="font-parents">0</text>
 
                     {/* Guia Pediatria Padrão (60m) - Sempre visível como referência verde de Zona Segura */}
-                    <line x1="40" y1="100" x2="560" y2="100" stroke="#3db87a" strokeWidth="1.5" strokeDasharray="4 4" opacity="0.8" />
+                    <line x1="40" y1="100" x2="560" y2="100" stroke="#10b981" strokeWidth="1.5" strokeDasharray="4 4" opacity="0.8" />
 
                     {/* Linha de Limite do Perfil Ativo (Meta Estabelecida) - Visível quando um filho específico é selecionado */}
                     {historyFilterId !== 'all' && (() => {
@@ -887,7 +919,7 @@ export const ParentDashboard: React.FC = () => {
                       if (p) {
                         const yLimit = Math.max(10, 140 - (p.limiteDiario / 180) * 115);
                         return (
-                          <line x1="40" y1={yLimit} x2="560" y2={yLimit} stroke="#f67280" strokeWidth="1.5" strokeDasharray="4 4" opacity="0.8" />
+                          <line x1="40" y1={yLimit} x2="560" y2={yLimit} stroke="#ef4444" strokeWidth="1.5" strokeDasharray="4 4" opacity="0.8" />
                         );
                       }
                       return null;
@@ -899,10 +931,26 @@ export const ParentDashboard: React.FC = () => {
                       const xStart = 55 + idx * spacing;
                       const maxVal = 180; // 3h = 180m
 
+                      // Background column highlights
+                      const isColHovered = hoveredBarInfo && hoveredBarInfo.dayIdx === idx;
+
                       if (historyFilterId === 'all') {
                         // Renderiza todos os filhos atômicos lado a lado
                         return (
                           <g key={dia}>
+                            {/* Track vertical de destaque no hover do dia */}
+                            {isColHovered && (
+                              <rect
+                                x={xStart - 22}
+                                y="21"
+                                width="44"
+                                height="118"
+                                fill="#f1f5f9"
+                                opacity="0.7"
+                                rx="8"
+                              />
+                            )}
+
                             {perfis.map((kid, kIdx) => {
                               const val = kid.historicoSeteDias[idx] || 0;
                               const height = Math.min(115, (val / maxVal) * 115);
@@ -912,16 +960,16 @@ export const ParentDashboard: React.FC = () => {
                               const x = xStart + kIdx * 13 - ((perfis.length * 13) / 2) + 6;
 
                               const colors = {
-                                lion: 'url(#grad-blue)',
-                                cat: 'url(#grad-pink)',
-                                owl: 'url(#grad-purple)',
-                                bear: 'url(#grad-yellow)'
+                                cat: 'url(#grad-cat)',
+                                lion: 'url(#grad-lion)',
+                                owl: 'url(#grad-owl)',
+                                bear: 'url(#grad-bear)'
                               };
-                              const fillColor = colors[kid.avatar] || 'url(#grad-blue)';
+                              const fillColor = colors[kid.avatar] || 'url(#grad-bear)';
 
                               const patterns = {
-                                lion: 'url(#pattern-lines-1)',
                                 cat: 'url(#pattern-lines-2)',
+                                lion: 'url(#pattern-lines-1)',
                                 owl: 'url(#pattern-dots)',
                                 bear: 'url(#pattern-crosshatch)'
                               };
@@ -975,7 +1023,7 @@ export const ParentDashboard: React.FC = () => {
                             })}
                             
                             {/* Rótulo do Dia */}
-                            <text x={xStart + 6} y="160" fill="#64748b" fontSize="10" fontWeight="bold" textAnchor="middle">{dia}</text>
+                            <text x={xStart + 6} y="160" fill="#64748b" fontSize="10" fontWeight="bold" textAnchor="middle" className="font-kids">{dia}</text>
                           </g>
                         );
                       } else {
@@ -990,16 +1038,16 @@ export const ParentDashboard: React.FC = () => {
                         const x = xStart - 8;
 
                         const colors = {
-                          lion: 'url(#grad-blue)',
-                          cat: 'url(#grad-pink)',
-                          owl: 'url(#grad-purple)',
-                          bear: 'url(#grad-yellow)'
+                          cat: 'url(#grad-cat)',
+                          lion: 'url(#grad-lion)',
+                          owl: 'url(#grad-owl)',
+                          bear: 'url(#grad-bear)'
                         };
-                        const fillColor = colors[kid.avatar] || 'url(#grad-blue)';
+                        const fillColor = colors[kid.avatar] || 'url(#grad-bear)';
 
                         const patterns = {
-                          lion: 'url(#pattern-lines-1)',
                           cat: 'url(#pattern-lines-2)',
+                          lion: 'url(#pattern-lines-1)',
                           owl: 'url(#pattern-dots)',
                           bear: 'url(#pattern-crosshatch)'
                         };
@@ -1014,6 +1062,19 @@ export const ParentDashboard: React.FC = () => {
 
                         return (
                           <g key={dia}>
+                            {/* Track vertical de destaque no hover do dia */}
+                            {isColHovered && (
+                              <rect
+                                x={xStart - 18}
+                                y="21"
+                                width="48"
+                                height="118"
+                                fill="#f1f5f9"
+                                opacity="0.7"
+                                rx="8"
+                              />
+                            )}
+
                             <rect
                               x={x}
                               y={y}
@@ -1050,7 +1111,7 @@ export const ParentDashboard: React.FC = () => {
                             />
                             
                             {/* Rótulo do Dia */}
-                            <text x={xStart + 6} y="160" fill="#64748b" fontSize="10" fontWeight="bold" textAnchor="middle">{dia}</text>
+                            <text x={xStart + 6} y="160" fill="#64748b" fontSize="10" fontWeight="bold" textAnchor="middle" className="font-kids">{dia}</text>
                           </g>
                         );
                       }
@@ -1058,20 +1119,20 @@ export const ParentDashboard: React.FC = () => {
                   </svg>
                   
                   {/* Legenda Dinâmica baseada no filtro */}
-                  <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 mt-4 text-xs font-bold text-slate-500 border-t border-slate-100 pt-3">
+                  <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 mt-4 text-xs font-bold text-slate-500 border-t border-slate-100 pt-3 font-parents">
                     {historyFilterId === 'all' ? (
                       perfis.map(kid => {
                         const colors = {
-                          lion: '#46b3cc',
-                          cat: '#f67280',
-                          owl: '#9e74d6',
-                          bear: '#f1c43f'
+                          cat: '#f472b6',
+                          lion: '#f59e0b',
+                          owl: '#8b5cf6',
+                          bear: '#3b82f6'
                         };
                         const fillColor = colors[kid.avatar] || '#cbd5e1';
 
                         const patterns = {
-                          lion: 'url(#pattern-lines-1)',
                           cat: 'url(#pattern-lines-2)',
+                          lion: 'url(#pattern-lines-1)',
                           owl: 'url(#pattern-dots)',
                           bear: 'url(#pattern-crosshatch)'
                         };
@@ -1080,12 +1141,16 @@ export const ParentDashboard: React.FC = () => {
                         const media = Math.round(kid.historicoSeteDias.reduce((a, b) => a + b, 0) / 7);
 
                         return (
-                          <div key={kid.id} className="flex items-center gap-1.5 select-none cursor-pointer" onClick={() => setHistoryFilterId(kid.id)}>
+                          <div 
+                            key={kid.id} 
+                            className="flex items-center gap-1.5 select-none cursor-pointer bg-white px-2.5 py-1 rounded-full border border-slate-100 shadow-3xs hover:border-slate-200 transition-colors" 
+                            onClick={() => setHistoryFilterId(kid.id)}
+                          >
                             <svg className="w-3.5 h-3.5 rounded-sm inline-block shrink-0" viewBox="0 0 14 14">
                               <rect width="14" height="14" fill={fillColor} rx="3" />
                               <rect width="14" height="14" fill={patternFill} rx="3" />
                             </svg>
-                            <span>{kid.nome} (Média: {media}m)</span>
+                            <span className="font-kids text-[10px] text-slate-600">{kid.nome} <span className="text-slate-400 font-semibold">(Média: {media}m)</span></span>
                           </div>
                         );
                       })
@@ -1095,16 +1160,16 @@ export const ParentDashboard: React.FC = () => {
                         if (!kid) return null;
                         
                         const colors = {
-                          lion: '#46b3cc',
-                          cat: '#f67280',
-                          owl: '#9e74d6',
-                          bear: '#f1c43f'
+                          cat: '#f472b6',
+                          lion: '#f59e0b',
+                          owl: '#8b5cf6',
+                          bear: '#3b82f6'
                         };
                         const fillColor = colors[kid.avatar] || '#cbd5e1';
 
                         const patterns = {
-                          lion: 'url(#pattern-lines-1)',
                           cat: 'url(#pattern-lines-2)',
+                          lion: 'url(#pattern-lines-1)',
                           owl: 'url(#pattern-dots)',
                           bear: 'url(#pattern-crosshatch)'
                         };
@@ -1113,26 +1178,26 @@ export const ParentDashboard: React.FC = () => {
                         const media = Math.round(kid.historicoSeteDias.reduce((a, b) => a + b, 0) / 7);
 
                         return (
-                          <div className="flex items-center gap-1.5">
+                          <div className="flex items-center gap-1.5 bg-white px-3 py-1 rounded-full border border-slate-100 shadow-3xs">
                             <svg className="w-3.5 h-3.5 rounded-sm inline-block shrink-0" viewBox="0 0 14 14">
                               <rect width="14" height="14" fill={fillColor} rx="3" />
                               <rect width="14" height="14" fill={patternFill} rx="3" />
                             </svg>
-                            <span>Média de Uso do(a) {kid.nome}: {media}m / dia</span>
+                            <span className="font-kids text-[10px] text-slate-600">Média de Uso do(a) {kid.nome}: <span className="text-slate-500 font-black">{media}m / dia</span></span>
                           </div>
                         );
                       })()
                     )}
                     
-                    <div className="flex items-center gap-1.5">
-                      <span className="w-6 h-0.5 border-t border-b border-dashed border-pastel-green-500 inline-block" />
-                      <span className="text-[11px] text-slate-400">Diretriz Pediatria</span>
+                    <div className="flex items-center gap-1.5 ml-2">
+                      <span className="w-6 h-0.5 border-t border-b border-dashed border-[#10b981] inline-block" />
+                      <span className="text-[10px] text-slate-400 font-semibold font-parents">Zona Segura</span>
                     </div>
 
                     {historyFilterId !== 'all' && (
-                      <div className="flex items-center gap-1.5">
-                        <span className="w-6 h-0.5 border-t border-b border-dashed border-pastel-pink-500 inline-block" />
-                        <span className="text-[11px] text-slate-400">Meta Estabelecida</span>
+                      <div className="flex items-center gap-1.5 ml-2">
+                        <span className="w-6 h-0.5 border-t border-b border-dashed border-red-500 inline-block" />
+                        <span className="text-[10px] text-slate-400 font-semibold font-parents">Meta Diária</span>
                       </div>
                     )}
                   </div>
