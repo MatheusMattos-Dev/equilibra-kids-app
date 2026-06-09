@@ -146,7 +146,7 @@ export const ParentPinModal: React.FC<ParentPinModalProps> = ({ isOpen, onClose,
   };
 
    return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center sm:p-4 bg-soft-dark-900/60 backdrop-blur-md animate-fade-in font-parents">
+    <div className="fixed inset-0 z-50 flex items-center justify-center sm:p-4 bg-soft-dark-900/60 animate-fade-in font-parents">
       <div 
         role="dialog"
         aria-modal="true"

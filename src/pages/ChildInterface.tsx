@@ -162,7 +162,7 @@ export const ChildInterface: React.FC<ChildInterfaceProps> = ({
       )}
 
       {/* Header */}
-      <div className="flex items-center justify-between bg-white/60 backdrop-blur-md p-3.5 rounded-3xl border border-white shadow-sm">
+      <div className="flex items-center justify-between bg-white/90 p-3.5 rounded-3xl border border-slate-100 shadow-sm">
         <button
           onClick={handleBackToProfiles}
           className="flex items-center gap-1 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 font-black text-xs rounded-xl active:scale-95 transition-transform"

@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { useScreenTime } from '../hooks/useScreenTime';
 import { Avatar } from '../components/Avatar';
-import { Settings, Shield, Sparkles, RefreshCw, Trophy, X, Check } from 'lucide-react';
+import { Settings, Shield, Sparkles, RefreshCw, Trophy, X, Check, Crown, Medal } from 'lucide-react';
 import { InstallPrompt } from '../components/InstallPrompt';
 
 export const ProfileSelection: React.FC = () => {
@@ -109,7 +110,7 @@ export const ProfileSelection: React.FC = () => {
               >
                 <div className="relative mb-3">
                   <Avatar type={perfil.avatar} className="w-24 h-24 group-hover:rotate-6 transition-transform duration-300" animate={false} />
-                  
+
                   {perfil.status === 'bloqueado' && (
                     <div className="absolute -top-1 -right-1 bg-pastel-pink-500 text-white text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full border-2 border-white shadow-md font-parents">
                       Dormindo
@@ -123,7 +124,7 @@ export const ProfileSelection: React.FC = () => {
                 </div>
 
                 <span className="text-lg font-black text-slate-800">{perfil.nome}</span>
-                
+
                 <div className="mt-3.5 bg-white/70 border border-white/95 rounded-2xl px-3 py-1 text-slate-600 text-xs font-bold font-parents flex flex-col items-center">
                   <span>Limite: {limiteMinutos} min</span>
                   <span className="text-[10px] text-slate-400 mt-0.5 font-medium">
@@ -155,15 +156,15 @@ export const ProfileSelection: React.FC = () => {
 
 
       {/* Modal de Ranking de Missões */}
-      {rankingOpen && (
-        <div className="fixed inset-0 z-40 bg-soft-dark-900/40 backdrop-blur-sm flex items-center justify-center p-4 font-kids">
+      {rankingOpen && createPortal(
+        <div className="fixed inset-0 z-[9999] bg-soft-dark-900/40 flex items-center justify-center p-4 font-kids">
           <div
             role="dialog"
             aria-modal="true"
             aria-labelledby="ranking-dialog-title"
             className="w-full max-w-md bg-white p-6 rounded-[32px] border-4 border-pastel-yellow-200 shadow-2xl animate-pop relative flex flex-col gap-4"
           >
-            
+
             {/* Botão Fechar */}
             <button
               onClick={() => setRankingOpen(false)}
@@ -185,57 +186,70 @@ export const ProfileSelection: React.FC = () => {
             </div>
 
             {/* Leaderboard */}
-            <div className="flex flex-row md:grid md:grid-cols-1 gap-3 overflow-x-auto md:overflow-x-visible pb-2 md:pb-0 w-full no-scrollbar max-h-[320px] pr-1">
+            <div className="flex flex-col gap-2.5 w-full overflow-y-auto no-scrollbar max-h-[350px] pr-1">
               {[...perfis]
                 .sort((a, b) => b.estrelasAcumuladas - a.estrelasAcumuladas)
                 .map((perfil, index) => {
-                  const positions = [
-                    'bg-pastel-yellow-500 text-white border-pastel-yellow-400',
-                    'bg-slate-300 text-slate-700 border-slate-200',
-                    'bg-amber-600 text-white border-amber-500',
-                  ];
-                  
-                  const themeConfig = {
-                    cat: 'border-pastel-pink-100 hover:border-pastel-pink-200',
-                    lion: 'border-pastel-yellow-100 hover:border-pastel-yellow-200',
-                    owl: 'border-pastel-purple-100 hover:border-pastel-purple-200',
-                    bear: 'border-pastel-blue-100 hover:border-pastel-blue-200'
-                  };
-                  const cardBorder = themeConfig[perfil.avatar] || themeConfig.bear;
+                  // Configurações do pódio
+                  const isFirst = index === 0;
+                  const isSecond = index === 1;
+                  const isThird = index === 2;
+
+                  let medalIcon = null;
+                  let badgeStyle = 'bg-slate-100 text-slate-500 border-slate-200';
+                  let cardBg = 'bg-slate-50/50 border-slate-100 hover:bg-slate-50';
+
+                  if (isFirst) {
+                    medalIcon = <Crown size={12} className="fill-pastel-yellow-200 text-pastel-yellow-500 animate-pulse" />;
+                    badgeStyle = 'bg-pastel-yellow-100 text-pastel-yellow-600 border-pastel-yellow-200';
+                    cardBg = 'bg-pastel-yellow-50/40 border-pastel-yellow-200/60 hover:bg-pastel-yellow-50/70 shadow-xs';
+                  } else if (isSecond) {
+                    medalIcon = <Medal size={12} className="text-slate-400 fill-slate-50" />;
+                    badgeStyle = 'bg-slate-100 text-slate-600 border-slate-200';
+                    cardBg = 'bg-slate-50/30 border-slate-200/40 hover:bg-slate-50/50';
+                  } else if (isThird) {
+                    medalIcon = <Medal size={12} className="text-amber-600 fill-amber-50" />;
+                    badgeStyle = 'bg-amber-100 text-amber-700 border-amber-200';
+                    cardBg = 'bg-slate-50/30 border-slate-200/40 hover:bg-slate-50/50';
+                  }
 
                   return (
                     <div
                       key={perfil.id}
-                      className={`flex items-center justify-between p-3.5 bg-slate-50/50 rounded-2xl border-2 transition-all active:scale-99 ${cardBorder} w-[260px] shrink-0 md:w-full md:shrink`}
+                      className={`flex items-center justify-between p-3 bg-white rounded-2xl border-2 transition-all active:scale-[0.99] ${cardBg} w-full`}
                     >
                       <div className="flex items-center gap-3">
-                        {/* Posição */}
-                        <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-black border shadow-xs ${
-                          index < 3 ? positions[index] : 'bg-slate-100 text-slate-400 border-slate-200'
-                        }`}>
-                          {index + 1}
-                        </span>
+                        {/* Emblema de Posição */}
+                        <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-black border shadow-xs ${badgeStyle}`}>
+                          {medalIcon ? medalIcon : index + 1}
+                        </div>
 
                         <Avatar type={perfil.avatar} className="w-10 h-10 shrink-0" />
-                        
-                        <div>
-                          <div className="flex items-center gap-1">
-                            <span className="font-black text-slate-800 text-sm">{perfil.nome}</span>
-                            {index === 0 && <span className="text-xs">👑</span>}
+
+                        <div className="flex flex-col">
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-black text-slate-800 text-sm font-kids">{perfil.nome}</span>
+                            {isFirst && (
+                              <span className="bg-pastel-yellow-100 text-pastel-yellow-700 text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded">
+                                Líder 👑
+                              </span>
+                            )}
                           </div>
-                          <span className="text-[10px] text-slate-400 font-semibold font-parents">Mascote Oficial</span>
+                          <span className="text-[9px] text-slate-400 font-semibold font-parents">
+                            {perfil.idade} anos
+                          </span>
                         </div>
                       </div>
 
                       <div className="flex items-center gap-2">
                         {/* Missões */}
-                        <div className="flex items-center gap-1 bg-pastel-green-100 text-pastel-green-700 px-2.5 py-1 rounded-full font-black text-[10px]">
+                        <div className="flex items-center gap-1 bg-pastel-green-50 text-pastel-green-600 px-2 py-0.5 rounded-full font-black text-[10px]">
                           <Check size={10} className="stroke-[3]" />
                           <span>{perfil.missoesCumpridas}</span>
                         </div>
 
                         {/* Estrelas */}
-                        <div className="flex items-center gap-0.5 text-pastel-yellow-500 font-black text-xs">
+                        <div className="flex items-center gap-1 bg-pastel-yellow-50 text-pastel-yellow-600 px-2 py-0.5 rounded-full font-black text-[10px]">
                           <span>★</span>
                           <span className="text-slate-700 font-bold">{perfil.estrelasAcumuladas}</span>
                         </div>
@@ -252,9 +266,10 @@ export const ProfileSelection: React.FC = () => {
               </p>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
-      
+
       {/* Botão de Acesso dos Pais Sticky no Mobile */}
       <div className="sm:hidden sticky bottom-4 left-0 right-0 z-10 w-full mt-6">
         <button
