@@ -1,19 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useScreenTime, isInsideAllowedWindow } from '../hooks/useScreenTime';
+import { useScreenTime, isInsideAllowedWindow, AVAILABLE_BADGES } from '../hooks/useScreenTime';
 import { Avatar } from '../components/Avatar';
 import { OfflineActivities } from '../components/OfflineActivities';
-import { ChevronLeft, Award, Sparkles, AlertTriangle, Send, Moon, Clock } from 'lucide-react';
+import { ChevronLeft, Award, Sparkles, AlertTriangle, Send, Moon, Clock, Lock, Gift, Star } from 'lucide-react';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
 
 interface ChildInterfaceProps {
   className?: string;
   isCompact?: boolean;
+  previewProfileId?: string;
 }
 
 export const ChildInterface: React.FC<ChildInterfaceProps> = ({ 
   className = 'min-h-screen p-4 md:p-6',
-  isCompact = false
+  isCompact = false,
+  previewProfileId
 }) => {
   const navigate = useNavigate();
   const isOnline = useOnlineStatus();
@@ -23,8 +25,53 @@ export const ChildInterface: React.FC<ChildInterfaceProps> = ({
     pedirMaisTempo, 
     concluirAtividadeOffline, 
     pausarTempoRemoto,
-    dataLoading
+    dataLoading,
+    rewards,
+    comprarRecompensa
   } = useScreenTime();
+
+  const targetProfileId = previewProfileId || activeProfileId;
+  const perfil = perfis.find(p => p.id === targetProfileId);
+
+  // Controle de alertas exibidos nesta sessão
+  const [warn15Open, setWarn15Open] = useState<boolean>(false);
+  const [warn5Open, setWarn5Open] = useState<boolean>(false);
+  const [hasDismissed15, setHasDismissed15] = useState<boolean>(false);
+  const [hasDismissed5, setHasDismissed5] = useState<boolean>(false);
+
+  // Garantir que ao abrir a tela com pouco tempo, os popups corretos apareçam
+  useEffect(() => {
+    if (perfil) {
+      const limiteSegundos = perfil.limiteDiario * 60;
+      const restanteSegundos = Math.max(0, limiteSegundos - perfil.tempoUsadoHoje);
+      const restanteMinutos = restanteSegundos / 60;
+
+      // Alerta de 15 minutos
+      if (restanteMinutos <= 15 && restanteMinutos > 5 && !hasDismissed15 && perfil.status === 'online') {
+        setWarn15Open(true);
+      } else {
+        setWarn15Open(false);
+      }
+
+      // Alerta de 5 minutos
+      if (restanteMinutos <= 5 && restanteMinutos > 0 && !hasDismissed5 && perfil.status === 'online') {
+        setWarn5Open(true);
+      } else {
+        setWarn5Open(false);
+      }
+    }
+  }, [perfil?.tempoUsadoHoje, perfil?.status, hasDismissed15, hasDismissed5]);
+
+  const [rewardToast, setRewardToast] = useState<string | null>(null);
+
+  const handleBuyReward = (custo: number, titulo: string) => {
+    if (!perfil) return;
+    const success = comprarRecompensa(perfil.id, custo);
+    if (success) {
+      setRewardToast(`Você resgatou: ${titulo}! Avise seus pais.`);
+      setTimeout(() => setRewardToast(null), 4000);
+    }
+  };
 
   if (dataLoading) {
     return (
@@ -56,36 +103,6 @@ export const ChildInterface: React.FC<ChildInterfaceProps> = ({
     );
   }
   
-  // Controle de alertas exibidos nesta sessão
-  const [warn15Open, setWarn15Open] = useState<boolean>(false);
-  const [warn5Open, setWarn5Open] = useState<boolean>(false);
-  const [hasDismissed15, setHasDismissed15] = useState<boolean>(false);
-  const [hasDismissed5, setHasDismissed5] = useState<boolean>(false);
-
-  const perfil = perfis.find(p => p.id === activeProfileId);
-
-  // Garantir que ao abrir a tela com pouco tempo, os popups corretos apareçam
-  useEffect(() => {
-    if (perfil) {
-      const limiteSegundos = perfil.limiteDiario * 60;
-      const restanteSegundos = Math.max(0, limiteSegundos - perfil.tempoUsadoHoje);
-      const restanteMinutos = restanteSegundos / 60;
-
-      // Alerta de 15 minutos
-      if (restanteMinutos <= 15 && restanteMinutos > 5 && !hasDismissed15 && perfil.status === 'online') {
-        setWarn15Open(true);
-      } else {
-        setWarn15Open(false);
-      }
-
-      // Alerta de 5 minutos
-      if (restanteMinutos <= 5 && restanteMinutos > 0 && !hasDismissed5 && perfil.status === 'online') {
-        setWarn5Open(true);
-      } else {
-        setWarn5Open(false);
-      }
-    }
-  }, [perfil?.tempoUsadoHoje, perfil?.status, hasDismissed15, hasDismissed5]);
 
   if (!perfil) {
     return (
@@ -120,32 +137,35 @@ export const ChildInterface: React.FC<ChildInterfaceProps> = ({
     pedirMaisTempo(perfil.id);
   };
 
-  // Cores dinâmicas para o timer e interface com base no tempo restante
+  // Cores dinâmicas para o timer e interface com base no tempo restante e idade
   const getTimerTheme = () => {
     const restanteMin = restanteSegundos / 60;
+    const isToddler = perfil.idade <= 5;
+    const isTeen = perfil.idade >= 13;
+
     if (restanteMin > 15) {
       return {
-        text: 'text-pastel-green-500',
-        stroke: 'stroke-pastel-green-500',
-        track: 'stroke-pastel-green-100',
-        bg: 'bg-pastel-green-50/50 border-pastel-green-200',
-        message: 'Você está indo muito bem! Divirta-se com moderação 🚀'
+        text: isTeen ? 'text-blue-500' : 'text-pastel-green-500',
+        stroke: isTeen ? 'stroke-blue-500' : 'stroke-pastel-green-500',
+        track: isTeen ? 'stroke-slate-200' : 'stroke-pastel-green-100',
+        bg: isTeen ? 'bg-slate-50 border-slate-200' : 'bg-pastel-green-50/50 border-pastel-green-200',
+        message: isToddler ? 'Hora de brincar! 🧸' : (isTeen ? 'Seu tempo de uso diário está saudável. ⏱️' : 'Você está indo muito bem! Divirta-se com moderação 🚀')
       };
     } else if (restanteMin > 5) {
       return {
-        text: 'text-pastel-yellow-600',
-        stroke: 'stroke-pastel-yellow-500',
-        track: 'stroke-pastel-yellow-100',
-        bg: 'bg-pastel-yellow-50/50 border-pastel-yellow-200',
-        message: 'Atenção! Restam menos de 15 minutos. Que tal salvar seu progresso? 🎮'
+        text: isTeen ? 'text-orange-500' : 'text-pastel-yellow-600',
+        stroke: isTeen ? 'stroke-orange-500' : 'stroke-pastel-yellow-500',
+        track: isTeen ? 'stroke-slate-200' : 'stroke-pastel-yellow-100',
+        bg: isTeen ? 'bg-slate-50 border-slate-200' : 'bg-pastel-yellow-50/50 border-pastel-yellow-200',
+        message: isToddler ? 'Falta pouquinho tempo ⏳' : (isTeen ? 'Restam menos de 15 minutos de uso diário.' : 'Atenção! Restam menos de 15 minutos. Que tal salvar seu progresso? 🎮')
       };
     } else {
       return {
-        text: 'text-pastel-pink-500 font-extrabold',
-        stroke: 'stroke-pastel-pink-500 animate-pulse',
-        track: 'stroke-pastel-pink-100',
-        bg: 'bg-pastel-pink-50/60 border-pastel-pink-100',
-        message: 'Quase na hora de descansar! Só mais 5 minutinhos 🐱'
+        text: isTeen ? 'text-red-500 font-extrabold' : 'text-pastel-pink-500 font-extrabold',
+        stroke: isTeen ? 'stroke-red-500' : 'stroke-pastel-pink-500 animate-pulse',
+        track: isTeen ? 'stroke-slate-200' : 'stroke-pastel-pink-100',
+        bg: isTeen ? 'bg-slate-50 border-slate-200' : 'bg-pastel-pink-50/60 border-pastel-pink-100',
+        message: isToddler ? 'Quase na hora de dormir! 🌙' : (isTeen ? 'O limite será atingido em menos de 5 minutos.' : 'Quase na hora de descansar! Só mais 5 minutinhos 🐱')
       };
     }
   };
@@ -162,7 +182,7 @@ export const ChildInterface: React.FC<ChildInterfaceProps> = ({
       )}
 
       {/* Header */}
-      <div className="flex items-center justify-between bg-white/90 p-3.5 rounded-3xl border border-slate-100 shadow-sm">
+      <div className="flex items-center justify-between bg-white/90 p-3.5 rounded-3xl border border-slate-100 shadow-sm relative">
         <button
           onClick={handleBackToProfiles}
           className="flex items-center gap-1 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 font-black text-xs rounded-xl active:scale-95 transition-transform"
@@ -330,6 +350,87 @@ export const ChildInterface: React.FC<ChildInterfaceProps> = ({
                   onCompleteActivity={(estrelas) => concluirAtividadeOffline(perfil.id, estrelas)} 
                 />
               </div>
+
+              {/* Mural de Conquistas */}
+              <div className={`w-full bg-white/70 border-2 border-slate-100 rounded-3xl p-3.5 shadow-2xs ${isCompact ? 'mt-4 mb-4 max-w-sm' : 'mt-4 mb-6 max-w-lg'} flex flex-col gap-2.5 font-parents`}>
+                <div className="flex items-center justify-between border-b border-slate-100 pb-1.5">
+                  <span className="text-[10px] font-black text-slate-700 uppercase tracking-wider flex items-center gap-1">
+                    <Award size={12} className="text-pastel-yellow-500" />
+                    Mural de Conquistas 🏆
+                  </span>
+                </div>
+                <div className="grid grid-cols-4 gap-2">
+                  {AVAILABLE_BADGES.map(badge => {
+                    const hasBadge = perfil.conquistas?.includes(badge.id);
+                    return (
+                      <div 
+                        key={badge.id}
+                        className={`flex flex-col items-center justify-center p-2 rounded-xl border-2 transition-all relative ${
+                          hasBadge 
+                            ? `bg-white border-slate-200 shadow-sm hover:scale-105 cursor-help group` 
+                            : 'bg-slate-50 border-slate-100 opacity-60 grayscale'
+                        }`}
+                        title={badge.description}
+                      >
+                        {!hasBadge && (
+                          <div className="absolute top-1 right-1">
+                            <Lock size={8} className="text-slate-400" />
+                          </div>
+                        )}
+                        <span className="text-lg sm:text-2xl mb-1">{badge.icon}</span>
+                        <span className="text-[8px] font-bold text-slate-500 text-center leading-tight line-clamp-2">
+                          {badge.title}
+                        </span>
+                        {hasBadge && (
+                          <div className="absolute opacity-0 group-hover:opacity-100 -bottom-10 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-[9px] px-2 py-1 rounded-lg w-max max-w-[150px] text-center pointer-events-none z-10 shadow-lg transition-opacity">
+                            {badge.description}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Loja de Recompensas */}
+              <div className={`w-full bg-white/70 border-2 border-slate-100 rounded-3xl p-3.5 shadow-2xs ${isCompact ? 'mb-4 max-w-sm' : 'mb-6 max-w-lg'} flex flex-col gap-2.5 font-parents`}>
+                <div className="flex items-center justify-between border-b border-slate-100 pb-1.5">
+                  <span className="text-[10px] font-black text-slate-700 uppercase tracking-wider flex items-center gap-1">
+                    <Gift size={12} className="text-pastel-pink-500" />
+                    Lojinha de Recompensas 🎁
+                  </span>
+                </div>
+                
+                {rewardToast && (
+                  <div className="bg-pastel-green-100 border border-pastel-green-200 text-pastel-green-700 text-[10px] font-black p-2 rounded-xl text-center animate-bounce">
+                    {rewardToast}
+                  </div>
+                )}
+
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {rewards.map(reward => {
+                    const iconMap = { 'gift': '🎁', 'ticket': '🎟️', 'pizza': '🍕', 'ice-cream': '🍦', 'gamepad': '🎮' };
+                    const canAfford = perfil.estrelasAcumuladas >= reward.custo;
+                    return (
+                      <div key={reward.id} className="bg-white border-2 border-slate-100 rounded-xl p-2 flex flex-col items-center gap-1 text-center shadow-2xs relative">
+                        <span className="text-2xl">{iconMap[reward.icone as keyof typeof iconMap] || '🎁'}</span>
+                        <span className="text-[9px] font-black text-slate-700 leading-tight h-6 flex items-center justify-center">{reward.titulo}</span>
+                        <button
+                          onClick={() => handleBuyReward(reward.custo, reward.titulo)}
+                          disabled={!canAfford}
+                          className={`mt-1 w-full py-1 rounded-lg text-[9px] font-black flex items-center justify-center gap-1 transition-all
+                            ${canAfford 
+                              ? 'bg-pastel-green-500 hover:bg-pastel-green-600 text-white shadow-sm active:scale-95' 
+                              : 'bg-slate-100 text-slate-400 cursor-not-allowed'}`}
+                        >
+                          <Star size={8} className={canAfford ? 'fill-pastel-yellow-300 text-pastel-yellow-200' : ''} />
+                          {canAfford ? `Comprar (${reward.custo})` : `Faltam ${reward.custo - perfil.estrelasAcumuladas}`}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
         ) : (
           /* TELA DE BLOQUEIO AMIGÁVEL ("ESTAÇÃO DE DESCANSO") */
@@ -360,22 +461,24 @@ export const ChildInterface: React.FC<ChildInterfaceProps> = ({
             </div>
 
             {/* Controle de Pedidos de Tempo */}
-            <div className="mt-4 sm:mt-6 w-full flex flex-col items-center px-4">
-              {perfil.pediuMaisTempo ? (
-                <div className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-pastel-purple-100 border border-pastel-purple-200 text-pastel-purple-700 font-bold text-[11px] sm:text-xs px-4 py-2.5 rounded-xl sm:rounded-2xl shadow-sm animate-pulse font-parents">
-                  <Send size={12} className="animate-spin-slow shrink-0" />
-                  <span>Pedido de +15 minutos enviado! Aguardando aprovação dos pais... 🚀</span>
-                </div>
-              ) : (
-                <button
-                  onClick={handleRequestMoreTime}
-                  className="w-full sm:w-auto px-5 py-2.5 bg-gradient-to-r from-pastel-purple-500 to-pastel-blue-500 hover:from-pastel-purple-600 hover:to-pastel-blue-600 text-white font-black text-[11px] sm:text-xs md:text-sm rounded-xl sm:rounded-2xl shadow-md border-b-4 border-pastel-purple-700 active:scale-95 transition-all flex items-center justify-center gap-2"
-                >
-                  <Send size={13} />
-                  Pedir mais 15 minutinhos aos pais 📨
-                </button>
-              )}
-            </div>
+            {perfil.idade > 5 && (
+              <div className="mt-4 sm:mt-6 w-full flex flex-col items-center px-4">
+                {perfil.pediuMaisTempo ? (
+                  <div className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-pastel-purple-100 border border-pastel-purple-200 text-pastel-purple-700 font-bold text-[11px] sm:text-xs px-4 py-2.5 rounded-xl sm:rounded-2xl shadow-sm animate-pulse font-parents">
+                    <Send size={12} className="animate-spin-slow shrink-0" />
+                    <span>Pedido de +15 minutos enviado! Aguardando aprovação dos pais... 🚀</span>
+                  </div>
+                ) : (
+                  <button
+                    onClick={handleRequestMoreTime}
+                    className="w-full sm:w-auto px-5 py-2.5 bg-gradient-to-r from-pastel-purple-500 to-pastel-blue-500 hover:from-pastel-purple-600 hover:to-pastel-blue-600 text-white font-black text-[11px] sm:text-xs md:text-sm rounded-xl sm:rounded-2xl shadow-md border-b-4 border-pastel-purple-700 active:scale-95 transition-all flex items-center justify-center gap-2"
+                  >
+                    <Send size={13} />
+                    Pedir mais 15 minutinhos aos pais 📨
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         )}
       </div>

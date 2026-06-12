@@ -23,7 +23,24 @@ export interface ChildProfile {
   limiteNoturno: string; // Ex: "21:30" ou "22:00"
   horarioInicioPermitido: string; // Ex: "14:00"
   horarioFimPermitido: string; // Ex: "18:00"
+  conquistas: string[]; // IDs das badges desbloqueadas
 }
+
+// Tipos para Conquistas e Badges
+export interface BadgeDef {
+  id: string;
+  title: string;
+  description: string;
+  icon: string;
+  color: string;
+}
+
+export const AVAILABLE_BADGES: BadgeDef[] = [
+  { id: 'primeiro_passo', title: 'Primeiro Passo', description: 'Ganhou a primeira estrela!', icon: '🌟', color: 'bg-yellow-100 text-yellow-700 border-yellow-200' },
+  { id: 'mestre_missoes', title: 'Mestre das Missões', description: 'Completou 5 missões offline.', icon: '🏆', color: 'bg-purple-100 text-purple-700 border-purple-200' },
+  { id: 'sete_dias', title: '7 Dias Equilibrado', description: 'Manteve o limite saudável por uma semana!', icon: '🔥', color: 'bg-orange-100 text-orange-700 border-orange-200' },
+  { id: 'dorminhoco', title: 'Dorminhoco Saudável', description: 'Sem telas após o horário de dormir por 7 dias.', icon: '🌙', color: 'bg-indigo-100 text-indigo-700 border-indigo-200' }
+];
 
 // Tipos para Alertas de Saúde
 export interface HealthAlert {
@@ -64,6 +81,14 @@ export interface Quest {
   custom?: boolean;
 }
 
+// Tipo para Recompensas Resgatáveis
+export interface Reward {
+  id: string;
+  titulo: string;
+  custo: number; // estrelas
+  icone: 'gift' | 'ticket' | 'pizza' | 'ice-cream' | 'gamepad';
+}
+
 // Interface do Contexto
 interface ScreenTimeContextProps {
   perfis: ChildProfile[];
@@ -92,6 +117,10 @@ interface ScreenTimeContextProps {
   adicionarQuestCustomizada: (titulo: string, descricao: string, recompensa: number, icone: 'smile' | 'palette' | 'droplet' | 'compass' | 'book' | 'star' | 'run' | 'clean') => void;
   deletarQuestCustomizada: (id: string) => void;
   resetarSimulador: () => void;
+  rewards: Reward[];
+  adicionarRecompensa: (titulo: string, custo: number, icone: 'gift' | 'ticket' | 'pizza' | 'ice-cream' | 'gamepad') => void;
+  deletarRecompensa: (id: string) => void;
+  comprarRecompensa: (childId: string, custo: number) => boolean;
 }
 
 // Perfis Iniciais Padrão para Demonstração
@@ -112,7 +141,8 @@ const INITIAL_PROFILES: ChildProfile[] = [
     excedeuDiasSeguidos: 7,
     limiteNoturno: '21:00',
     horarioInicioPermitido: '09:00',
-    horarioFimPermitido: '20:00'
+    horarioFimPermitido: '20:00',
+    conquistas: ['primeiro_passo']
   },
   {
     id: 'leo-2',
@@ -130,7 +160,8 @@ const INITIAL_PROFILES: ChildProfile[] = [
     excedeuDiasSeguidos: 0,
     limiteNoturno: '22:00',
     horarioInicioPermitido: '14:00', // Fora do horário agora (10:00 AM) para demonstração de bloqueio!
-    horarioFimPermitido: '19:00'
+    horarioFimPermitido: '19:00',
+    conquistas: ['primeiro_passo', 'mestre_missoes']
   },
   {
     id: 'bia-3',
@@ -148,7 +179,8 @@ const INITIAL_PROFILES: ChildProfile[] = [
     excedeuDiasSeguidos: 1,
     limiteNoturno: '21:30',
     horarioInicioPermitido: '08:00',
-    horarioFimPermitido: '21:00'
+    horarioFimPermitido: '21:00',
+    conquistas: ['primeiro_passo']
   }
 ];
 
@@ -183,11 +215,20 @@ export const DEFAULT_QUESTS: Quest[] = [
   }
 ];
 
+export const DEFAULT_REWARDS: Reward[] = [
+  { id: 'reward-1', titulo: 'Escolher o Jantar', custo: 20, icone: 'pizza' },
+  { id: 'reward-2', titulo: 'Sobremesa Especial', custo: 15, icone: 'ice-cream' },
+  { id: 'reward-3', titulo: 'Passeio no Parque', custo: 50, icone: 'ticket' },
+  { id: 'reward-4', titulo: '30min de Jogo Livre', custo: 30, icone: 'gamepad' },
+  { id: 'reward-5', titulo: 'Presente Surpresa', custo: 100, icone: 'gift' }
+];
+
 const ScreenTimeContext = createContext<ScreenTimeContextProps | undefined>(undefined);
 
 export const ScreenTimeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [perfis, setPerfis] = useState<ChildProfile[]>([]);
   const [quests, setQuests] = useState<Quest[]>([]);
+  const [rewards, setRewards] = useState<Reward[]>([]);
   const [activeProfileId, setActiveProfileId] = useState<string | null>(null);
   const [turboMode, setTurboMode] = useState<boolean>(false);
   const [emailConfig, setEmailConfig] = useState<EmailConfig>({
@@ -265,6 +306,16 @@ export const ScreenTimeProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       stars: quest.recompensa,
       emoji: quest.icone,
       custom: quest.custom ?? true
+    });
+  };
+
+  // Helper para salvar recompensa no Firestore
+  const saveRewardToFirestore = async (uid: string, reward: Reward) => {
+    await setDoc(doc(db, `families/${uid}/rewards/${reward.id}`), {
+      id: reward.id,
+      titulo: reward.titulo,
+      custo: reward.custo,
+      icone: reward.icone
     });
   };
 
@@ -358,10 +409,35 @@ export const ScreenTimeProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         });
       }
     }, (err) => {
-      setSyncError("Erro ao sincronizar missões.");
-      console.error(err);
+      console.error("Erro ao sincronizar missões:", err);
     });
     unsubscribesRef.current.push(unsubMissions);
+
+    // 2.5 Ouvinte para Recompensas
+    const unsubRewards = onSnapshot(collection(db, `families/${uid}/rewards`), (snapshot) => {
+      if (!snapshot.empty) {
+        const loadedRewards: Reward[] = [];
+        snapshot.forEach(docSnap => {
+          const data = docSnap.data();
+          loadedRewards.push({
+            id: docSnap.id,
+            titulo: data.titulo || '',
+            custo: data.custo || 10,
+            icone: data.icone || 'gift'
+          });
+        });
+        setRewards(loadedRewards);
+      } else {
+        // Popula recompensas padrão se estiver vazio
+        DEFAULT_REWARDS.forEach(r => {
+          saveRewardToFirestore(uid, r).catch(console.error);
+        });
+      }
+    }, (err) => {
+      console.error("Erro ao sincronizar recompensas:", err);
+    });
+    unsubscribesRef.current.push(unsubRewards);
+
 
     // 3. Ouvinte para Alertas de Saúde
     const unsubAlerts = onSnapshot(collection(db, `families/${uid}/alerts`), (snapshot) => {
@@ -469,6 +545,7 @@ export const ScreenTimeProvider: React.FC<{ children: React.ReactNode }> = ({ ch
             historicoSeteDias,
             usoApos22hCount: data.usoApos22hCount || 0,
             excedeuDiasSeguidos: data.excedeuDiasSeguidos || 0,
+            conquistas: data.conquistas || [],
           });
         }
 
@@ -554,6 +631,17 @@ export const ScreenTimeProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       setQuests(DEFAULT_QUESTS);
     }
 
+    const localRewards = localStorage.getItem('equilibrakids_rewards');
+    if (localRewards) {
+      try {
+        setRewards(JSON.parse(localRewards));
+      } catch (e) {
+        setRewards(DEFAULT_REWARDS);
+      }
+    } else {
+      setRewards(DEFAULT_REWARDS);
+    }
+
     const localActiveId = localStorage.getItem('equilibrakids_active_id');
     if (localActiveId) {
       setActiveProfileId(localActiveId);
@@ -636,6 +724,12 @@ export const ScreenTimeProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       localStorage.setItem('equilibrakids_quests', JSON.stringify(quests));
     }
   }, [quests, dataLoading]);
+
+  useEffect(() => {
+    if (!dataLoading && rewards && rewards.length > 0) {
+      localStorage.setItem('equilibrakids_rewards', JSON.stringify(rewards));
+    }
+  }, [rewards, dataLoading]);
 
   // Efeito para salvar o tempo imediatamente quando o status de algum perfil muda de online para pausado/bloqueado
   const prevStatusesRef = useRef<Record<string, string>>({});
@@ -931,15 +1025,16 @@ export const ScreenTimeProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       }
 
       const maxDiaHistorico = Math.max(...perfil.historicoSeteDias);
-      if (maxDiaHistorico >= 360) {
+      const limiteExtremo = Math.max(180, perfil.limiteDiario * 2);
+      if (maxDiaHistorico >= limiteExtremo) {
         const alert: HealthAlert = {
           id: `alert-extremo-${perfil.id}`,
           childId: perfil.id,
           childNome: perfil.nome,
           tipo: 'USO_EXTREMO',
           titulo: 'Alerta Crítico: Pico de Uso Extremamente Elevado',
-          descricao: `Uso diário de telas atingiu ${Math.round(maxDiaHistorico / 60)} horas em um dia desta semana.`,
-          impacto: 'Mais de 6 horas de tela induzem comportamento sedentário extremo e fadiga visual.',
+          descricao: `O uso de telas atingiu ${Math.round(maxDiaHistorico / 60)} horas em um dia, ultrapassando gravemente a recomendação de ${Math.round(perfil.limiteDiario / 60)}h para a idade de ${perfil.idade} anos.`,
+          impacto: 'O excesso extremo induz comportamento sedentário prolongado, hiperestimulação dopaminérgica e fadiga visual.',
           dicaPratica: 'Adote a regra de ouro "20-20-20": olhar para longe a cada 20 minutos.',
           gravidade: 'critico'
         };
@@ -963,6 +1058,44 @@ export const ScreenTimeProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         triggerHealthAlertNotification(uid, alert);
       }
     });
+  }, [perfis, auth.currentUser]);
+
+  // Avaliador de Conquistas (Badges)
+  useEffect(() => {
+    if (!auth.currentUser || perfis.length === 0) return;
+    const uid = auth.currentUser.uid;
+    let teveMudanca = false;
+
+    const perfisAtualizados = perfis.map((perfil) => {
+      const novasConquistas = new Set(perfil.conquistas || []);
+
+      // 1. Primeiro Passo
+      if (perfil.estrelasAcumuladas >= 1) novasConquistas.add('primeiro_passo');
+      
+      // 2. Mestre das Missões
+      if (perfil.missoesCumpridas >= 5) novasConquistas.add('mestre_missoes');
+
+      // 3. 7 Dias Equilibrado
+      const temHistoricoCompleto = perfil.historicoSeteDias.length === 7 && perfil.historicoSeteDias.every(d => d > 0);
+      const semExcesso = perfil.historicoSeteDias.every(d => d <= perfil.limiteDiario) && perfil.excedeuDiasSeguidos === 0;
+      if (temHistoricoCompleto && semExcesso) novasConquistas.add('sete_dias');
+
+      // 4. Dorminhoco Saudável
+      if (temHistoricoCompleto && perfil.usoApos22hCount === 0) novasConquistas.add('dorminhoco');
+
+      if (novasConquistas.size > (perfil.conquistas?.length || 0)) {
+        teveMudanca = true;
+        const arrayConquistas = Array.from(novasConquistas);
+        
+        saveProfileToFirestore(uid, { ...perfil, conquistas: arrayConquistas }).catch(console.error);
+        return { ...perfil, conquistas: arrayConquistas } as ChildProfile;
+      }
+      return perfil;
+    });
+
+    if (teveMudanca) {
+      setPerfis(perfisAtualizados);
+    }
   }, [perfis, auth.currentUser]);
 
   // Função assíncrona para gravar o tempo acumulado de forma controlada (Throttled/Debounced)
@@ -1222,7 +1355,8 @@ export const ScreenTimeProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       excedeuDiasSeguidos: 0,
       limiteNoturno,
       horarioInicioPermitido: inicioPermitido,
-      horarioFimPermitido: fimPermitido
+      horarioFimPermitido: fimPermitido,
+      conquistas: []
     };
     setPerfis(prev => [...prev, novo]);
     if (auth.currentUser) {
@@ -1273,6 +1407,57 @@ export const ScreenTimeProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       const uid = auth.currentUser.uid;
       deleteDoc(doc(db, `families/${uid}/missions/${id}`)).catch(console.error);
     }
+  };
+
+  const adicionarRecompensa = (titulo: string, custo: number, icone: 'gift' | 'ticket' | 'pizza' | 'ice-cream' | 'gamepad') => {
+    const nova: Reward = {
+      id: `reward-${Date.now()}`,
+      titulo,
+      custo,
+      icone
+    };
+    setRewards(prev => {
+      const novas = [...prev, nova];
+      localStorage.setItem('equilibrakids_rewards', JSON.stringify(novas));
+      return novas;
+    });
+    if (auth.currentUser) {
+      saveRewardToFirestore(auth.currentUser.uid, nova).catch(console.error);
+    }
+  };
+
+  const deletarRecompensa = (id: string) => {
+    setRewards(prev => {
+      const novas = prev.filter(r => r.id !== id);
+      localStorage.setItem('equilibrakids_rewards', JSON.stringify(novas));
+      return novas;
+    });
+    if (auth.currentUser) {
+      const uid = auth.currentUser.uid;
+      deleteDoc(doc(db, `families/${uid}/rewards/${id}`)).catch(console.error);
+    }
+  };
+
+  const comprarRecompensa = (childId: string, custo: number): boolean => {
+    let success = false;
+    let targetEstrelas = 0;
+    setPerfis(prev => prev.map(p => {
+      if (p.id === childId && p.estrelasAcumuladas >= custo) {
+        success = true;
+        targetEstrelas = p.estrelasAcumuladas - custo;
+        return { ...p, estrelasAcumuladas: targetEstrelas } as ChildProfile;
+      }
+      return p as ChildProfile;
+    }));
+    
+    if (success && auth.currentUser) {
+      const uid = auth.currentUser.uid;
+      updateDoc(doc(db, `families/${uid}/profiles/${childId}`), {
+        starsAccumulated: targetEstrelas,
+        estrelasAcumuladas: targetEstrelas
+      }).catch(console.error);
+    }
+    return success;
   };
 
   const resetarSimulador = async () => {
@@ -1365,7 +1550,11 @@ export const ScreenTimeProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       atualizarNotificationPreferences,
       adicionarQuestCustomizada,
       deletarQuestCustomizada,
-      resetarSimulador
+      resetarSimulador,
+      rewards,
+      adicionarRecompensa,
+      deletarRecompensa,
+      comprarRecompensa
     }}>
       {children}
     </ScreenTimeContext.Provider>

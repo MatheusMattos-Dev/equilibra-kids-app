@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import { useScreenTime } from '../hooks/useScreenTime';
+import { useScreenTime, AVAILABLE_BADGES } from '../hooks/useScreenTime';
 import { Avatar } from '../components/Avatar';
 import { HealthAlertCard } from '../components/HealthAlertCard';
 import {
@@ -10,7 +10,7 @@ import {
   TrendingUp, Sparkles, Check, Smartphone, ToggleLeft, ToggleRight,
   Trophy, Medal, Crown, Mail,
   Palette, Compass, Droplet, BookOpen, Star, Trash, Smile,
-  AlertTriangle, X, Calendar
+  AlertTriangle, X, Calendar, Gift
 } from 'lucide-react';
 import { ChildInterface } from './ChildInterface';
 import { ParentPinModal } from '../components/ParentPinModal';
@@ -30,7 +30,6 @@ export const ParentDashboard: React.FC = () => {
   } = useRegisterSW();
   const {
     perfis,
-    activeProfileId,
     turboMode,
     alertas,
     pausarTempoRemoto,
@@ -42,7 +41,6 @@ export const ParentDashboard: React.FC = () => {
     adicionarNovoPerfil,
     setTurboMode,
     selecionarPerfil,
-    setActiveProfileId,
     emailConfig,
     atualizarEmailConfig,
     notificationPreferences,
@@ -50,6 +48,9 @@ export const ParentDashboard: React.FC = () => {
     quests,
     adicionarQuestCustomizada,
     deletarQuestCustomizada,
+    rewards,
+    adicionarRecompensa,
+    deletarRecompensa,
     dataLoading,
     syncError
   } = useScreenTime();
@@ -78,14 +79,35 @@ export const ParentDashboard: React.FC = () => {
         await signOut();
         navigate('/');
       } catch (err) {
-        alert("Erro ao deslogar.");
+        addToast("Erro ao encerrar a sessão. Tente novamente.", "error");
       }
     }
   };
 
   const handleBlockClick = (id: string) => {
+    setEmulatorProfileId(id);
     setPendingBlockId(id);
     setPinOpen(true);
+  };
+
+  const handlePausar = (id: string) => {
+    setEmulatorProfileId(id);
+    pausarTempoRemoto(id);
+  };
+
+  const handleRetomar = (id: string) => {
+    setEmulatorProfileId(id);
+    iniciarTempoRemoto(id);
+  };
+
+  const handleAdicionar = (id: string, mins: number) => {
+    setEmulatorProfileId(id);
+    adicionarTempoRemoto(id, mins);
+  };
+
+  const handleAprovar = (id: string) => {
+    setEmulatorProfileId(id);
+    aprovarMaisTempo(id);
   };
 
   const handlePinSuccess = () => {
@@ -103,6 +125,21 @@ export const ParentDashboard: React.FC = () => {
   const [isSimulatingEmail, setIsSimulatingEmail] = useState<boolean>(false);
   const [emailSentToast, setEmailSentToast] = useState<boolean>(false);
 
+  // Sistema de Notificações Toast Personalizado e Elegante
+  interface ToastItem {
+    id: string;
+    message: string;
+    type: 'success' | 'error' | 'info' | 'warning';
+  }
+  const [toasts, setToasts] = useState<ToastItem[]>([]);
+  const addToast = (message: string, type: 'success' | 'error' | 'info' | 'warning' = 'success') => {
+    const id = Date.now().toString() + Math.random().toString(36).substr(2, 9);
+    setToasts(prev => [...prev, { id, message, type }]);
+    setTimeout(() => {
+      setToasts(prev => prev.filter(t => t.id !== id));
+    }, 4000);
+  };
+
   // Sincronizar estados locais do e-mail com o contexto
   React.useEffect(() => {
     setEmailInput(emailConfig.email);
@@ -111,12 +148,15 @@ export const ParentDashboard: React.FC = () => {
     setEmailRanking(emailConfig.incluirRanking);
   }, [emailConfig]);
 
+  // Estado local para o emulador
+  const [emulatorProfileId, setEmulatorProfileId] = useState<string>('');
+
   // Garantir que sempre haja um perfil ativo selecionado no emulador
   React.useEffect(() => {
-    if (perfis.length > 0 && (!activeProfileId || !perfis.some(p => p.id === activeProfileId))) {
-      setActiveProfileId(perfis[0].id);
+    if (perfis.length > 0 && (!emulatorProfileId || !perfis.some(p => p.id === emulatorProfileId))) {
+      setEmulatorProfileId(perfis[0].id);
     }
-  }, [perfis, activeProfileId, setActiveProfileId]);
+  }, [perfis, emulatorProfileId]);
 
   // Garantir que sempre haja um perfil selecionado para limites
   React.useEffect(() => {
@@ -142,6 +182,26 @@ export const ParentDashboard: React.FC = () => {
   const [newEndTime, setNewEndTime] = useState<string>('20:00');
   const [showNewForm, setShowNewForm] = useState<boolean>(false);
 
+  // Ajuste inteligente baseado na idade (Recomendações OMS)
+  React.useEffect(() => {
+    if (newAge >= 13) {
+      setNewLimit(180);
+      setNewBedtime('22:30');
+      setNewStartTime('07:00');
+      setNewEndTime('21:00');
+    } else if (newAge >= 6) {
+      setNewLimit(120);
+      setNewBedtime('21:30');
+      setNewStartTime('08:00');
+      setNewEndTime('20:00');
+    } else {
+      setNewLimit(60);
+      setNewBedtime('20:30');
+      setNewStartTime('09:00');
+      setNewEndTime('19:00');
+    }
+  }, [newAge]);
+
   // Agendamento de dias da semana
   const [selectedDays, setSelectedDays] = useState<number[]>([0, 1, 2, 3, 4]); // Segunda a Sexta por padrão
   const handleToggleDay = (dayIdx: number) => {
@@ -164,7 +224,23 @@ export const ParentDashboard: React.FC = () => {
       setQuestDescription('');
       setQuestStars(2);
       setQuestIcon('star');
-      alert('Missão customizada criada com sucesso! Ela já está ativa para todas as crianças na Estação de Descanso.');
+      addToast('Missão customizada criada com sucesso! Ela já está ativa para todas as crianças na Estação de Descanso.', 'success');
+    }
+  };
+
+  // Estados para cadastro de nova recompensa
+  const [rewardTitle, setRewardTitle] = useState<string>('');
+  const [rewardCost, setRewardCost] = useState<number>(20);
+  const [rewardIcon, setRewardIcon] = useState<'gift' | 'ticket' | 'pizza' | 'ice-cream' | 'gamepad'>('gift');
+
+  const handleCreateReward = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (rewardTitle.trim()) {
+      adicionarRecompensa(rewardTitle, rewardCost, rewardIcon);
+      setRewardTitle('');
+      setRewardCost(20);
+      setRewardIcon('gift');
+      addToast('Recompensa cadastrada com sucesso! Ela já está disponível na Lojinha das crianças.', 'success');
     }
   };
 
@@ -182,7 +258,7 @@ export const ParentDashboard: React.FC = () => {
     e.preventDefault();
     if (selectedChildId) {
       redefinirLimite(selectedChildId, editLimit, editBedtime, editStartTime, editEndTime);
-      alert('Configurações atualizadas com sucesso! Os limites foram aplicados remotamente.');
+      addToast('Configurações atualizadas com sucesso! Os limites foram aplicados remotamente.', 'success');
     }
   };
 
@@ -192,7 +268,7 @@ export const ParentDashboard: React.FC = () => {
       adicionarNovoPerfil(newName, newAge, newLimit, newAvatar, newBedtime, newStartTime, newEndTime);
       setNewName('');
       setShowNewForm(false);
-      alert(`Perfil do(a) ${newName} criado com sucesso!`);
+      addToast(`Perfil do(a) ${newName} criado com sucesso!`, 'success');
     }
   };
 
@@ -204,7 +280,7 @@ export const ParentDashboard: React.FC = () => {
       incluirAlertas: emailAlertas,
       incluirRanking: emailRanking
     });
-    alert('Preferências de e-mail salvas com sucesso! O relatório semanal será consolidado para ' + emailInput);
+    addToast('Preferências de e-mail salvas com sucesso! Relatório configurado para ' + emailInput, 'success');
   };
 
   const handleSimulateEmail = () => {
@@ -585,6 +661,25 @@ export const ParentDashboard: React.FC = () => {
                           </span>
                         </div>
 
+                        {/* Linha 2.5: Mural de Conquistas (Badges) */}
+                        {kid.conquistas && kid.conquistas.length > 0 && (
+                          <div className="w-full pb-3 border-b border-slate-100 flex flex-col gap-1.5 mt-2">
+                            <span className="text-[9px] font-black uppercase text-slate-400 tracking-wider">Conquistas 🏆</span>
+                            <div className="flex gap-1.5 flex-wrap">
+                              {kid.conquistas.map(badgeId => {
+                                const badgeInfo = AVAILABLE_BADGES.find(b => b.id === badgeId);
+                                if (!badgeInfo) return null;
+                                return (
+                                  <div key={badgeId} className={`flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full border ${badgeInfo.color}`} title={badgeInfo.description}>
+                                    <span>{badgeInfo.icon}</span>
+                                    <span>{badgeInfo.title}</span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+
                         {/* Linha 3: Controles Rápidos do Dispositivo */}
                         <div className="flex flex-col gap-2 w-full pt-3 border-t border-slate-100">
                           {/* Entregar dispositivo */}
@@ -605,7 +700,7 @@ export const ParentDashboard: React.FC = () => {
                             {/* Pausar / Retomar */}
                             {kid.status === 'online' ? (
                               <button
-                                onClick={() => pausarTempoRemoto(kid.id)}
+                                onClick={() => handlePausar(kid.id)}
                                 className="flex-1 py-2 bg-pastel-yellow-50 hover:bg-pastel-yellow-100 text-pastel-yellow-600 rounded-xl border border-pastel-yellow-200 transition-colors flex items-center justify-center text-xs font-bold"
                                 title="Pausar Sessão"
                               >
@@ -613,7 +708,7 @@ export const ParentDashboard: React.FC = () => {
                               </button>
                             ) : (
                               <button
-                                onClick={() => iniciarTempoRemoto(kid.id)}
+                                onClick={() => handleRetomar(kid.id)}
                                 disabled={kid.status === 'bloqueado'}
                                 className="flex-1 py-2 bg-pastel-green-50 hover:bg-pastel-green-100 text-pastel-green-600 disabled:opacity-30 disabled:cursor-not-allowed rounded-xl border border-pastel-green-200 transition-colors flex items-center justify-center text-xs font-bold"
                                 title="Retomar Sessão"
@@ -635,7 +730,7 @@ export const ParentDashboard: React.FC = () => {
 
                           {/* Presentear +15 minutos */}
                           <button
-                            onClick={() => adicionarTempoRemoto(kid.id, 15)}
+                            onClick={() => handleAdicionar(kid.id, 15)}
                             className="w-full py-2 bg-slate-50 hover:bg-slate-100 text-slate-700 font-extrabold text-xs rounded-xl border border-slate-200 active:scale-95 transition-all flex items-center justify-center gap-1"
                             title="Presentear Criança com +15 Minutos"
                           >
@@ -653,7 +748,7 @@ export const ParentDashboard: React.FC = () => {
                               </span>
                             </div>
                             <button
-                              onClick={() => aprovarMaisTempo(kid.id)}
+                              onClick={() => handleAprovar(kid.id)}
                               className="w-full py-1.5 bg-pastel-purple-500 hover:bg-pastel-purple-600 text-white font-black text-xs rounded-lg shadow-md border-b-2 border-pastel-purple-700 active:scale-95 transition-all"
                             >
                               Aprovar +15 min! 👍
@@ -733,21 +828,31 @@ export const ParentDashboard: React.FC = () => {
                   }
 
                   // Avaliação e Cor de acordo com a média
+                  let baseLimit = 120; // Default if all
+                  if (historyFilterId !== 'all') {
+                    const p = perfis.find(prof => prof.id === historyFilterId);
+                    if (p) baseLimit = p.limiteDiario;
+                  } else {
+                    if (perfis.length > 0) {
+                      baseLimit = Math.round(perfis.reduce((sum, p) => sum + p.limiteDiario, 0) / perfis.length);
+                    }
+                  }
+
                   let cardBg = 'bg-emerald-50/40 border-emerald-100';
                   let textColor = 'text-emerald-600';
                   let ratingText = 'Excelente Equilíbrio! 🟢';
-                  let insightText = 'O tempo de tela médio está saudável e dentro do limite recomendado de 1h/dia.';
+                  let insightText = `O tempo médio está saudável e dentro do limite configurado de ${Math.round(baseLimit / 60)}h/dia.`;
 
-                  if (avg > 60 && avg <= 120) {
+                  if (avg > baseLimit * 0.8 && avg <= baseLimit * 1.2) {
                     cardBg = 'bg-pastel-yellow-50/40 border-pastel-yellow-200/60';
                     textColor = 'text-pastel-yellow-600';
                     ratingText = 'Consumo Moderado 🟡';
-                    insightText = 'Recomendado introduzir 15m extras de quest física ou brincadeira offline.';
-                  } else if (avg > 120) {
+                    insightText = 'O uso está próximo ao limite. Recomendado intercalar com brincadeiras físicas.';
+                  } else if (avg > baseLimit * 1.2) {
                     cardBg = 'bg-pastel-pink-50/40 border-pastel-pink-100';
                     textColor = 'text-pastel-pink-500';
                     ratingText = 'Limite Excedido 🔴';
-                    insightText = 'Hiperestimulação detectada. Recomendado reduzir o tempo de tela diário.';
+                    insightText = `Hiperestimulação detectada (acima de ${baseLimit}m/dia). Reduza o uso.`;
                   }
 
                   // Índice de desenvolvimento neurológico lúdico
@@ -1477,6 +1582,8 @@ export const ParentDashboard: React.FC = () => {
                   </div>
                 </div>
               </div>
+
+
             </div>
           )}
 
@@ -1633,6 +1740,130 @@ export const ParentDashboard: React.FC = () => {
                       </div>
                     );
                   })}
+              </div>
+
+              {/* Seção de Recompensas Resgatáveis (movida para cá a pedido do usuário) */}
+              <div className="pt-6 border-t border-slate-100 mt-2 mb-6">
+                <div className="mb-4">
+                  <h3 className="text-sm font-black text-slate-800 flex items-center gap-2">
+                    <Gift className="text-pastel-pink-500" size={18} />
+                    Lojinha de Recompensas
+                  </h3>
+                  <p className="text-[11px] text-slate-400 font-semibold font-parents mt-0.5">
+                    Cadastre recompensas do mundo real (ex: "Noite da Pizza", "Passeio no Parque") para a criança "comprar" usando as estrelas conquistadas.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+                  {/* Formulário Nova Recompensa (col-span-5) */}
+                  <form onSubmit={handleCreateReward} className="md:col-span-5 bg-slate-50/50 p-4 rounded-2xl border border-slate-100 flex flex-col gap-4">
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-500 mb-1.5">Título da Recompensa</label>
+                      <input
+                        type="text"
+                        required
+                        value={rewardTitle}
+                        onChange={e => setRewardTitle(e.target.value)}
+                        placeholder="Ex: Escolher o Jantar"
+                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-pastel-pink-400 focus:border-transparent font-parents"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-500 mb-1.5">Custo (Estrelas)</label>
+                      <div className="flex items-center gap-2">
+                        <Star className="text-pastel-yellow-500" size={16} />
+                        <input
+                          type="number"
+                          min="1"
+                          max="1000"
+                          required
+                          value={rewardCost}
+                          onChange={e => setRewardCost(Number(e.target.value))}
+                          className="w-24 px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-black focus:ring-2 focus:ring-pastel-pink-400"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-500 mb-2">Ícone</label>
+                      <div className="grid grid-cols-5 gap-2">
+                        {[
+                          { name: 'gift', icon: '🎁' },
+                          { name: 'ticket', icon: '🎟️' },
+                          { name: 'pizza', icon: '🍕' },
+                          { name: 'ice-cream', icon: '🍦' },
+                          { name: 'gamepad', icon: '🎮' }
+                        ].map((iconItem) => (
+                          <button
+                            key={iconItem.name}
+                            type="button"
+                            onClick={() => setRewardIcon(iconItem.name as any)}
+                            className={`p-2 rounded-xl border flex flex-col items-center justify-center gap-1 transition-all ${rewardIcon === iconItem.name
+                              ? 'border-pastel-pink-400 bg-pastel-pink-50 scale-105 shadow-2xs'
+                              : 'border-slate-100 bg-slate-50 grayscale hover:grayscale-0'
+                              }`}
+                          >
+                            <span className="text-lg">{iconItem.icon}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <button
+                      type="submit"
+                      className="mt-2 py-2.5 bg-pastel-pink-500 hover:bg-pastel-pink-600 text-white rounded-xl font-extrabold text-xs shadow-md hover:shadow-lg flex items-center justify-center gap-1.5 transition-all active:scale-95 border-b-4 border-pastel-pink-700"
+                    >
+                      <Plus size={14} /> Cadastrar Recompensa
+                    </button>
+                  </form>
+
+                  {/* Lista de Recompensas (col-span-7) */}
+                  <div className="md:col-span-7 flex flex-col gap-4">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-xs font-black text-slate-400 uppercase tracking-wider">Recompensas na Lojinha</h4>
+                      <span className="text-[9px] bg-slate-100 text-slate-500 font-extrabold px-2 py-0.5 rounded-md border border-slate-200">
+                        {rewards.length} Recompensa(s)
+                      </span>
+                    </div>
+
+                    <div className="flex flex-col gap-3 max-h-[350px] overflow-y-auto pr-1 select-none no-scrollbar">
+                      {rewards.map((r) => {
+                        const iconMap = {
+                          'gift': '🎁',
+                          'ticket': '🎟️',
+                          'pizza': '🍕',
+                          'ice-cream': '🍦',
+                          'gamepad': '🎮'
+                        };
+                        return (
+                          <div key={r.id} className="p-3.5 rounded-2xl border border-slate-150 bg-slate-50/50 flex items-center justify-between gap-4">
+                            <div className="flex items-center gap-3">
+                              <div className="p-2 bg-white rounded-xl shadow-2xs border border-slate-100 text-xl">
+                                {iconMap[r.icone as keyof typeof iconMap] || '🎁'}
+                              </div>
+                              <div>
+                                <h5 className="font-extrabold text-slate-800 text-xs">{r.titulo}</h5>
+                                <div className="bg-white border border-slate-150 px-2 py-0.5 mt-1 rounded text-[10px] font-black text-slate-700 flex items-center gap-0.5 shadow-3xs w-max">
+                                  <span className="text-pastel-yellow-500">★</span>
+                                  <span>{r.custo}</span>
+                                </div>
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => deletarRecompensa(r.id)}
+                              className="p-1.5 hover:bg-pastel-pink-50 text-pastel-pink-500 rounded-lg border border-transparent hover:border-pastel-pink-200 transition-colors"
+                              title="Excluir Recompensa"
+                            >
+                              <Trash size={14} />
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
               </div>
 
               {/* Dica lúdica */}
@@ -2066,8 +2297,8 @@ export const ParentDashboard: React.FC = () => {
               {perfis.map((k) => (
                 <button
                   key={k.id}
-                  onClick={() => setActiveProfileId(k.id)}
-                  className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2.5 text-xs font-bold rounded-xl transition-all active:scale-95 ${activeProfileId === k.id
+                  onClick={() => setEmulatorProfileId(k.id)}
+                  className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2.5 text-xs font-bold rounded-xl transition-all active:scale-95 ${emulatorProfileId === k.id
                     ? 'bg-pastel-purple-500 text-white shadow-sm'
                     : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
                     }`}
@@ -2089,7 +2320,7 @@ export const ParentDashboard: React.FC = () => {
               {/* Tela do celular (Viewport) */}
               <div className="flex-1 w-full bg-white overflow-y-auto overflow-x-hidden no-scrollbar relative select-none" style={{ fontSize: '13.5px' }}>
                 <div className="h-full w-full flex flex-col">
-                  <ChildInterface className="h-full min-h-full p-3" isCompact={true} />
+                  <ChildInterface className="h-full min-h-full p-3" isCompact={true} previewProfileId={emulatorProfileId} />
                 </div>
               </div>
 
@@ -2130,11 +2361,14 @@ export const ParentDashboard: React.FC = () => {
                   type="number"
                   required
                   min="2"
-                  max="16"
+                  max="17"
                   value={newAge}
                   onChange={(e) => setNewAge(parseInt(e.target.value))}
                   className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-sm text-slate-700 outline-none focus:border-pastel-green-400"
                 />
+                <p className="text-[9px] text-slate-400 mt-1.5 font-semibold leading-tight">
+                  <span className="font-bold text-pastel-green-600">Dica OMS:</span> {newAge <= 5 ? 'Máximo de 1h/dia' : (newAge <= 12 ? 'Máximo de 2h/dia' : 'Máximo de 3h/dia')}
+                </p>
               </div>
               <div>
                 <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Hora de Dormir</label>
@@ -2286,6 +2520,55 @@ export const ParentDashboard: React.FC = () => {
           </button>
         </div>
       )}
+
+      {/* Toast Stack do Console dos Pais (Design Premium com Glassmorphism) */}
+      <div className="fixed top-6 right-6 z-[9999] flex flex-col gap-3 max-w-sm w-full pointer-events-none px-4 sm:px-0">
+        {toasts.map(t => {
+          let border = 'border-slate-100';
+          let iconBg = 'bg-slate-100 text-slate-500';
+          let IconComponent = Sparkles;
+
+          if (t.type === 'success') {
+            border = 'border-pastel-green-200/80';
+            iconBg = 'bg-pastel-green-50 text-pastel-green-500';
+            IconComponent = Check;
+          } else if (t.type === 'error') {
+            border = 'border-pastel-pink-200';
+            iconBg = 'bg-pastel-pink-50 text-pastel-pink-500';
+            IconComponent = ShieldAlert;
+          } else if (t.type === 'warning') {
+            border = 'border-pastel-yellow-200';
+            iconBg = 'bg-pastel-yellow-50 text-pastel-yellow-600';
+            IconComponent = AlertTriangle;
+          } else if (t.type === 'info') {
+            border = 'border-pastel-blue-200';
+            iconBg = 'bg-pastel-blue-50 text-pastel-blue-500';
+            IconComponent = Bell;
+          }
+
+          return (
+            <div
+              key={t.id}
+              className={`pointer-events-auto w-full p-4 rounded-2xl shadow-xl border bg-white/95 backdrop-blur-md flex items-center gap-3 animate-pop transition-all ${border}`}
+            >
+              <div className={`p-2 rounded-xl shrink-0 ${iconBg}`}>
+                <IconComponent size={16} />
+              </div>
+              <div className="flex-1 text-xs font-semibold leading-normal font-parents text-slate-700">
+                {t.message}
+              </div>
+              <button
+                type="button"
+                onClick={() => setToasts(prev => prev.filter(item => item.id !== t.id))}
+                className="p-1 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+                aria-label="Fechar notificação"
+              >
+                <X size={14} />
+              </button>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 };
